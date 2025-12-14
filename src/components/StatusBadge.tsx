@@ -62,7 +62,7 @@ export const StatusBadge = ({ onComplete, onImprove, onSearch, hasSelection, isL
                         <div class="copilot-status-menu-item-icon improve">
                             <Pencil size={14} />
                         </div>
-                        <span class="copilot-status-menu-item-text">Improve Selection</span>
+                        <span class="copilot-status-menu-item-text">Improve Writing</span>
                     </div>
                     <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={handleSearch} title={!hasSelection ? 'Select text first' : ''}>
                         <div class="copilot-status-menu-item-icon search">

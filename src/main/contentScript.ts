@@ -140,7 +140,7 @@ function checkSelectionState() {
 let selectionCheckTimeout: NodeJS.Timeout | null = null;
 function debouncedSelectionCheck() {
   document.getElementById('copilot-toolbar')?.remove();
-  document.getElementById('copilot-toolbar-editor')?.remove();
+  // Don't auto-remove copilot-toolbar-editor - it has its own close button
   updateSuggestionOnCursorUpdate();
 
   if (selectionCheckTimeout) clearTimeout(selectionCheckTimeout);

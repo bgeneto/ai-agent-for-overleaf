@@ -42,7 +42,7 @@ function handleComplete() {
   window.dispatchEvent(new CustomEvent('copilot:menu:complete'));
 }
 
-// Handle "Improve Selection" action from menu - directly show editor
+// Handle "Improve Writing" action from menu - directly show editor
 function handleImprove() {
   if (!options || options.toolbarDisabled) return;
   if (!currentSelection) return;
@@ -146,12 +146,9 @@ function onCursorUpdate(event: CustomEvent<{ hasSelection: boolean }>) {
     renderBadge();
   }
 
-  // Abort any in-progress operations if cursor moved
+  // Abort any in-progress suggestions if cursor moved (but not improve operations)
   suggestionAbortController?.abort();
-  improveAbortController?.abort();
-
-  // Remove toolbar editor if cursor moves
-  document.getElementById('copilot-toolbar-editor')?.remove();
+  // Don't abort improveAbortController or remove toolbar-editor - it has its own close button
 }
 
 async function onOptionsUpdate() {
