@@ -7,24 +7,10 @@ import {
 import { postProcessToken, renderPrompt } from './helper';
 import { Options, TextContent, StreamChunk } from '../types';
 
-const HOSTED_IMPROVE_URL = 'https://embedding.azurewebsites.net/improve';
 
 export async function getImprovement(content: TextContent, prompt: string, options: Options, signal: AbortSignal) {
   if (!options.apiKey) {
-    try {
-      const response = await fetch(HOSTED_IMPROVE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: content.selection }),
-        signal: signal,
-      });
-      if (!response.ok) {
-        return "Server is at capacity. Please select fewer words, try again later or use your own OpenAI API key."
-      }
-      return postProcessToken((await response.json())["content"])
-    } catch (AbortError) {
-      return "The request was aborted.";
-    }
+    return "Please set your OpenAI API key in the extension options.";
   } else {
     const openai = new OpenAI({
       apiKey: options.apiKey,
@@ -56,38 +42,11 @@ export async function* getImprovementStream(content: TextContent, prompt: string
   AsyncGenerator<StreamChunk, void, unknown> {
 
   if (!options.apiKey) {
-    try {
-      const response = await fetch(HOSTED_IMPROVE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: content.selection, stream: true }),
-        signal: signal,
-      });
-
-      if (!response.ok || response.body === null) {
-        yield {
-          kind: "error",
-          content: "Server is at capacity. Please select fewer words, try again later or use your own OpenAI API key."
-        };
-        return;
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const token = postProcessToken(decoder.decode(value, { stream: true }));
-        if (!!token) {
-          yield {
-            kind: "token",
-            content: token,
-          };
-        }
-      }
-    } catch (AbortError) {
-    }
+    yield {
+      kind: "error",
+      content: "Please set your OpenAI API key in the extension options."
+    };
+    return;
   } else {
     const openai = new OpenAI({
       apiKey: options.apiKey,

@@ -41,6 +41,8 @@ export interface Options {
   apiKey?: string;
   apiBaseUrl?: string;
   model?: string;
+  availableModels?: string[];
+
 
   suggestionMaxOutputToken?: number;
   suggestionPrompt?: string;
@@ -49,6 +51,10 @@ export interface Options {
   toolbarActions?: ToolbarAction[];
   toolbarSearchDisabled?: boolean;
   toolbarDisabled?: boolean;
+
+  embeddingModel?: string;
+  availableEmbeddingModels?: string[];
+  customDomains?: string[];
 }
 export interface StreamChunk {
   kind: "token" | "error",

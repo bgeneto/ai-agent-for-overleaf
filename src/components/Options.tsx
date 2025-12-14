@@ -3,12 +3,13 @@ import { useEffect, useState } from 'preact/hooks'
 import 'purecss/build/pure-min.css';
 import { LOCAL_STORAGE_KEY_OPTIONS, MODELS } from '../constants';
 import { Options } from '../types';
-import { getOptions } from '../utils/helper';
+import { getOptions, encryptApiKey } from '../utils/helper';
 import { IconSelect } from './IconSelect';
 
 const OptionsForm = () => {
   const [state, setState] = useState<Options>({});
   const [message, setMessage] = useState<string>();
+  const [newDomain, setNewDomain] = useState<string>('');
 
   useEffect(() => {
     getOptions().then((options) => {
@@ -18,7 +19,36 @@ const OptionsForm = () => {
 
   const onSubmit = async (e: Event) => {
     e.preventDefault();
-    await chrome.storage.local.set({ [LOCAL_STORAGE_KEY_OPTIONS]: state });
+    const optionsToSave = { ...state };
+    if (optionsToSave.apiKey && !optionsToSave.apiKey.startsWith('sk-') && !optionsToSave.apiKey.startsWith('ey')) {
+      // It might be already encrypted if we didn't decrypt successfuly?
+      // No, getOptions decrypts it.
+      // But wait, if user pasted a key, it starts with sk-.
+      // If we encrypt it, it won't start with sk-.
+      // So we should encrypt it.
+      optionsToSave.apiKey = encryptApiKey(optionsToSave.apiKey);
+    } else if (optionsToSave.apiKey) {
+      // It implies it is already encrypted or legacy that we want to encrypt?
+      // If it starts with sk- (legacy plaintext), we want to encrypt it.
+      // If it is newly typed by user, it starts with sk-.
+      // So basically always encrypt if it looks like a key.
+      // Our simple "is it encrypted" check in helper was: try decrypt, if fail...
+      // Actually helper says: if (options.apiKey.startsWith('sk-')) { // Legacy plaintext }
+      // So if it starts with sk-, it is plaintext.
+      optionsToSave.apiKey = encryptApiKey(optionsToSave.apiKey);
+    }
+
+    // Actually, simpler logic: Always encrypt whatever is in the field before saving, 
+    // UNLESS it looks like it's already encrypted (which shouldn't happen if we decrypt on load).
+    // But wait, if we save it, then `state` still has plaintext.
+    // Next time we load `getOptions`, it decrypts.
+
+    // What if the user enters a non-sk key (e.g. Azure key or other provider)?
+    // The previous code supported `apiBaseUrl`.
+    // The encryption is just obfuscation.
+    // Let's just encrypt blindly. `encryptApiKey` returns a string.
+
+    await chrome.storage.local.set({ [LOCAL_STORAGE_KEY_OPTIONS]: optionsToSave });
     setMessage('Options saved')
   };
 
@@ -46,6 +76,186 @@ const OptionsForm = () => {
 
   const version = chrome.runtime.getManifest().version;
 
+  const fetchModels = async () => {
+    setMessage('Fetching models...');
+    try {
+      const baseUrl = state.apiBaseUrl?.replace(/\/+$/, '') || 'https://api.openai.com/v1';
+      const apiKey = state.apiKey;
+
+      if (!apiKey) {
+        setMessage('Please enter an API key first');
+        return;
+      }
+
+      // If encrypted, we can't fetch. But state.apiKey should be decrypted by getOptions logic?
+      // Wait, on load, getOptions decrypts it. So state.apiKey is plaintext. Correct.
+
+      const response = await fetch(`${baseUrl}/models`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const allModels = data.data.map((m: any) => m.id).sort();
+
+      const chatModels = allModels.filter((id: string) =>
+        id.startsWith('gpt') || id.startsWith('o1') || !id.includes('embedding')
+      );
+      const embedModels = allModels.filter((id: string) =>
+        id.includes('embedding')
+      );
+
+      const newState = { ...state, availableModels: chatModels, availableEmbeddingModels: embedModels };
+
+      if (chatModels.includes(state.model)) {
+        // keep current
+      } else if (chatModels.length > 0) {
+        newState.model = chatModels[0];
+      }
+
+      if (embedModels.includes(state.embeddingModel)) {
+        // keep current
+      } else if (embedModels.length > 0) {
+        newState.embeddingModel = embedModels[0];
+      }
+
+      onOptionsChange(newState);
+      setMessage(`Fetched ${allModels.length} models`);
+    } catch (error) {
+      if (error instanceof Error) {
+        setMessage(error.message);
+      } else {
+        setMessage('An unknown error occurred');
+      }
+    }
+  };
+
+  const testConnection = async () => {
+    setMessage('Testing connection...');
+    try {
+      const baseUrl = state.apiBaseUrl?.replace(/\/+$/, '') || 'https://api.openai.com/v1';
+      const apiKey = state.apiKey;
+      if (!apiKey) {
+        setMessage('Please enter an API key first');
+        return;
+      }
+      const response = await fetch(`${baseUrl}/models`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        setMessage('Success! Connection verified.');
+      } else {
+        setMessage(`Failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (e) {
+      if (e instanceof Error) setMessage(`Error: ${e.message}`);
+      else setMessage('Connection failed.');
+    }
+  };
+
+  const addDomain = async () => {
+    let domain = newDomain.trim();
+    if (!domain) return;
+
+    // remove trailing slash
+    domain = domain.replace(/\/$/, '');
+
+    // Ensure protocol
+    if (!domain.startsWith('http')) {
+      domain = 'https://' + domain;
+    }
+
+    let origin: string;
+    try {
+      origin = new URL(domain).origin;
+    } catch {
+      setMessage('Invalid domain URL');
+      return;
+    }
+
+    // Permission request
+    const granted = await (chrome as any).permissions.request({
+      origins: [origin + '/*']
+    });
+
+    if (!granted) {
+      setMessage('Permission denied');
+      return;
+    }
+
+    try {
+      const idSuffix = origin.replace(/[^a-zA-Z0-9]/g, '-');
+      await (chrome as any).scripting.registerContentScripts([
+        {
+          id: `main-${idSuffix}`,
+          js: ['contentMainScript.js'],
+          matches: [origin + '/project/*'],
+          world: 'MAIN',
+          runAt: 'document_idle',
+          persistAcrossSessions: true
+        },
+        {
+          id: `iso-${idSuffix}`,
+          js: ['contentIsoScript.js'],
+          css: ['contentIsoScript.css'],
+          matches: [origin + '/project/*'],
+          runAt: 'document_idle',
+          persistAcrossSessions: true
+        }
+      ]);
+
+      const customDomains = [...(state.customDomains || []), origin];
+      // Deduplicate
+      const uniqueDomains = Array.from(new Set(customDomains));
+
+      onOptionsChange({ ...state, customDomains: uniqueDomains });
+      setNewDomain('');
+      setMessage(`Added domain: ${origin}`);
+    } catch (e) {
+      if (e instanceof Error) {
+        setMessage(`Error: ${e.message}`);
+      } else {
+        setMessage('Unknown error registering script');
+      }
+    }
+  };
+
+  const removeDomain = async (domain: string) => {
+    try {
+      const idSuffix = domain.replace(/[^a-zA-Z0-9]/g, '-');
+      // unregisterContentScripts might fail if ids don't exist, but we should try
+      try {
+        await (chrome as any).scripting.unregisterContentScripts({
+          ids: [`main-${idSuffix}`, `iso-${idSuffix}`]
+        });
+      } catch (e) {
+        console.warn('Failed to unregister scripts', e);
+      }
+
+      const customDomains = (state.customDomains || []).filter(d => d !== domain);
+      onOptionsChange({ ...state, customDomains });
+      setMessage(`Removed domain: ${domain}`);
+
+      chrome.permissions.remove({
+        origins: [domain + '/*']
+      });
+
+    } catch (e) {
+      if (e instanceof Error) {
+        setMessage(`Error: ${e.message}`);
+      }
+    }
+  };
+
   return (
     <Fragment>
       <form class="pure-form pure-form-aligned" onSubmit={onSubmit}>
@@ -58,31 +268,74 @@ const OptionsForm = () => {
             </p>
           </div>
           <div class="pure-control-group">
-            <label for="field-api-key">OpenAI API key</label>
-            <input class="pure-input-1-4" type="password" id="field-api-key" placeholder="Enter your API key" value={state.apiKey}
-              onChange={(e) => onOptionsChange({ ...state, apiKey: e.currentTarget.value })} />
+            <label for="field-api-key">OpenAI API Key</label>
+            <input type="password" id="field-api-key" required disabled={!!state.apiBaseUrl && !state.apiKey}
+              value={state.apiKey || ''} placeholder="sk-..." class="pure-input-1-3"
+              onInput={(e: any) => onOptionsChange({ ...state, apiKey: e.currentTarget.value })} />
+            <span class="pure-form-message-inline">Required for all features.</span>
           </div>
-          <div class="pure-u-3-4">
-            <p>
-              To avoid quota limitations, please use your own API key. Your API key will be stored locally and will never be shared.
-            </p>
-            <p style="color: #8B0000">You need to use your own API key to customize the following options.</p>
-          </div>
-          <h2>Model</h2>
+
           <div class="pure-control-group">
-            <label for="field-api-base-url">API base URL</label>
-            <input class="pure-input-1-4" type="text" id="field-api-base-url" placeholder="https://api.openai.com/v1" value={state.apiBaseUrl}
-              onChange={(e) => onOptionsChange({ ...state, apiBaseUrl: e.currentTarget.value })} />
-            <span class="pure-form-message-inline pure-u-1-3">Change this setting only if you're using Azure OpenAI.</span>
+            <label></label>
+            <button type="button" class="pure-button" onClick={testConnection}>Test Connection</button>
           </div>
+
           <div class="pure-control-group">
-            <label for="field-model">Model</label>
+            <label for="field-api-base-url">API Base URL</label>
+            <input type="text" id="field-api-base-url"
+              value={state.apiBaseUrl || ''} placeholder="https://api.openai.com/v1" class="pure-input-1-3"
+              onInput={(e: any) => onOptionsChange({ ...state, apiBaseUrl: e.currentTarget.value })} />
+            <span class="pure-form-message-inline">Optional (for proxies/local).</span>
+          </div>
+
+          <div class="pure-control-group">
+            <label for="field-model">Chat Model</label>
             <select style="padding-top: 0px; padding-bottom: 0px" id="field-model" class="pure-input-1-4"
-              onChange={(e) => onOptionsChange({ ...state, model: e.currentTarget.value })}>
-              {MODELS.map((model) => <option value={model} selected={model === state.model}>{model}</option>)}
+              value={state.model}
+              onChange={(e: any) => onOptionsChange({ ...state, model: e.currentTarget.value })}>
+              {(state.availableModels && state.availableModels.length > 0 ? state.availableModels : MODELS).map((model) => (
+                <option value={model} selected={model === state.model}>{model}</option>
+              ))}
             </select>
-            <span class="pure-form-message-inline pure-u-1-3">Select the model you want to use.</span>
+            <button type="button" style="margin-left: 10px;" class="pure-button" onClick={fetchModels}>Refresh Models</button>
           </div>
+
+          <div class="pure-control-group">
+            <label for="field-embedding-model">Embedding Model</label>
+            <select style="padding-top: 0px; padding-bottom: 0px" id="field-embedding-model" class="pure-input-1-4"
+              value={state.embeddingModel}
+              onChange={(e: any) => onOptionsChange({ ...state, embeddingModel: e.currentTarget.value })}>
+              <option value="" disabled selected={!state.embeddingModel}>Select an embedding model</option>
+              {(state.availableEmbeddingModels || ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]).map((model) => (
+                <option value={model} selected={model === state.embeddingModel}>{model}</option>
+              ))}
+            </select>
+            <span class="pure-form-message-inline pure-u-1-3">For "Find Similar" feature.</span>
+          </div>
+          <h2>Custom Domains</h2>
+          <div class="pure-u-3-4">
+            <p>Add self-hosted Overleaf instances here. You will need to grant permission for the extension to run on these domains.</p>
+          </div>
+          <div class="pure-control-group">
+            <label for="field-new-domain">Add Domain</label>
+            <input class="pure-input-1-4" type="text" id="field-new-domain" placeholder="https://tex.example.com" value={newDomain}
+              onChange={(e) => setNewDomain(e.currentTarget.value)} />
+            <button class="pure-button" type="button" onClick={addDomain} style="margin-left: 5px">Add</button>
+          </div>
+          {state.customDomains && state.customDomains.length > 0 &&
+            <div class="pure-control-group">
+              <label>Active Domains</label>
+              <div class="pure-input-1-2" style="display: inline-block; vertical-align: top;">
+                {state.customDomains.map(domain => (
+                  <div style="margin-bottom: 5px;">
+                    <span style="display: inline-block; width: 200px;">{domain}</span>
+                    <button class="pure-button" type="button" onClick={() => removeDomain(domain)}>-</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          }
+
           <h2>Suggestion</h2>
           <div class="pure-u-3-4">
             <p>This section customizes how suggestions work. Suggestions are triggered when you type a space at the end of a

@@ -1,5 +1,9 @@
 import { LOCAL_STORAGE_KEY_API_KEY, LOCAL_STORAGE_KEY_BASE_URL, LOCAL_STORAGE_KEY_MODEL, LOCAL_STORAGE_KEY_OPTIONS } from "../constants";
 import { Options, TextContent } from "../types";
+import AES from 'crypto-js/aes';
+import encUtf8 from 'crypto-js/enc-utf8';
+
+const SECRET_PHRASE = "overleaf-copilot-secret-phrase-v1"; // Simple obfuscation key
 
 const Prefixes = ["```latex\n", "```latex", "```"];
 const Suffixes = ["\n```", "```"];
@@ -29,6 +33,25 @@ export async function getOptions() {
   const options = (data[LOCAL_STORAGE_KEY_OPTIONS] ?? {}) as Options;
   const toolbarActions = options.toolbarActions ?? [];
 
+  // Decrypt API Key if it exists
+  if (options.apiKey) {
+    try {
+      if (options.apiKey.startsWith('sk-')) {
+        // Legacy plaintext key, don't decrypt.
+        // We will encrypt it on next save.
+      } else {
+        const bytes = AES.decrypt(options.apiKey, SECRET_PHRASE);
+        const decrypted = bytes.toString(encUtf8);
+        if (decrypted) {
+          options.apiKey = decrypted;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to decrypt API key', e);
+      // Fallback: maybe it was not encrypted?
+    }
+  }
+
   // This is for backward compatibility. If the options are not found in the new format, try to get them from the old format.
   // It will be removed in the future.
   if (!options.apiKey && !!data[LOCAL_STORAGE_KEY_API_KEY]) options.apiKey = data[LOCAL_STORAGE_KEY_API_KEY];
@@ -39,7 +62,15 @@ export async function getOptions() {
   if (toolbarActions.length === 0) toolbarActions.push({ name: '', prompt: '', icon: '', onClick: 'show_editor' });
   options.toolbarActions = toolbarActions;
 
+  if (!options.customDomains) options.customDomains = [];
+  // availableModels can be undefined, implying default logic
+
   return options;
+}
+
+export function encryptApiKey(apiKey: string): string {
+  if (!apiKey) return '';
+  return AES.encrypt(apiKey, SECRET_PHRASE).toString();
 }
 
 export function getQueryParams() {

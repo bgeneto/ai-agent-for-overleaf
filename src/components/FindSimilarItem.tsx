@@ -11,6 +11,8 @@ export interface FindSimilarMetadata {
 }
 
 export const FindSimilarItem = ({ metadata, data }: { metadata: FindSimilarMetadata, data: FindSimilarData }) => {
+  // Security Note: Ensure metadata content is treated as text, not HTML. 
+  // Preact/React escapes data by default. Do not use dangerouslySetInnerHTML here.
   return <div>
     <a target="_blank" href={metadata.link}>{metadata.title}</a>
     <div style="font-style: italic; color: #006621">

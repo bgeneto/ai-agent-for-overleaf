@@ -8,44 +8,16 @@ import {
 import { postProcessToken, renderPrompt } from './helper';
 import { Options, StreamChunk, TextContent } from '../types';
 
-const HOSTED_COMPLETE_URL = 'https://embedding.azurewebsites.net/complete';
 
 export async function* getSuggestion(content: TextContent, signal: AbortSignal, options: Options):
   AsyncGenerator<StreamChunk, void, unknown> {
 
   if (!options.apiKey) {
-    try {
-      const response = await fetch(HOSTED_COMPLETE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: content.before, stream: true }),
-        signal: signal,
-      });
-
-      if (!response.ok || response.body === null) {
-        yield {
-          kind: "error",
-          content: "Server is at capacity. Please try again later or use your own OpenAI API key."
-        };
-        return;
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const token = postProcessToken(decoder.decode(value, { stream: true }));
-        if (!!token) {
-          yield {
-            kind: "token",
-            content: token,
-          };
-        }
-      }
-    } catch (AbortError) {
-    }
+    yield {
+      kind: "error",
+      content: "Please set your OpenAI API key in the extension options."
+    };
+    return;
   } else {
     const openai = new OpenAI({
       apiKey: options.apiKey,
