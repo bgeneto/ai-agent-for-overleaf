@@ -118,7 +118,7 @@ Stored in `chrome.storage` with key `LOCAL_STORAGE_KEY_OPTIONS`:
   apiKey?: string;           // OpenAI API key
   apiBaseUrl?: string;       // Custom base URL (for proxies)
   model?: string;            // Default: 'gpt-3.5-turbo'
-  suggestionMaxOutputToken?: number;  // Default: 100
+  suggestionMaxOutputToken?: number;  // Default: 500
   suggestionPrompt?: string; // Custom system prompt
   suggestionDisabled?: boolean;
   toolbarActions?: ToolbarAction[];  // Custom toolbar buttons

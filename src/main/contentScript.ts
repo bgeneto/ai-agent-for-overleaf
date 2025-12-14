@@ -80,7 +80,7 @@ function onCursorUpdate() {
 window.addEventListener('copilot:editor:replace', onReplaceContent as EventListener);
 window.addEventListener('cursor:editor:update', debounce(onCursorUpdate));
 
-// REVIEW dsp05: This isn't very ideal, need to investigate what was changed.
+// REVIEW: This isn't ideal, need to investigate what was changed.
 const setupKeydownListener = (n: number) => {
   if (n <= 0) return true;
   const editor = document.querySelector('.cm-content');
@@ -93,3 +93,21 @@ const setupKeydownListener = (n: number) => {
 };
 
 setupKeydownListener(10);
+
+const hookCmDispatch = (n: number) => {
+  if (n <= 0) return;
+  const editor = document.querySelector('.cm-content') as any;
+  if (!editor || !editor.cmView || !editor.cmView.view) {
+    setTimeout(() => hookCmDispatch(n - 1), 500);
+    return;
+  }
+  const view = editor.cmView.view;
+  const originalDispatch = view.dispatch;
+  view.dispatch = (...args: any[]) => {
+    originalDispatch.apply(view, args);
+    window.dispatchEvent(new CustomEvent('cursor:editor:update'));
+  };
+  console.log('Overleaf Copilot: Hooked into CodeMirror dispatch');
+};
+
+hookCmDispatch(20);

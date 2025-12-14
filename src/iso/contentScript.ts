@@ -6,6 +6,9 @@ import { showToolbar } from './toolbar';
 import { Options, TextContent } from '../types';
 import { Suggestion } from '../common/suggestion';
 import { getOptions } from '../utils/helper';
+import { StatusBadge } from '../components/StatusBadge';
+import { render, h } from 'preact';
+
 
 let options: Options | undefined = undefined;
 let suggestionAbortController: AbortController | null = null;
@@ -59,4 +62,11 @@ window.addEventListener('copilot:editor:update', onEditorUpdate as any as EventL
 window.addEventListener('copilot:editor:select', onEditorSelect as any as EventListener);
 window.addEventListener('copilot:cursor:update', onCursorUpdate);
 chrome.storage.onChanged.addListener(onOptionsUpdate);
+chrome.storage.onChanged.addListener(onOptionsUpdate);
 onOptionsUpdate();
+
+// Initialize Status Badge
+const badgeContainer = document.createElement('div');
+document.body.appendChild(badgeContainer);
+render(h(StatusBadge, {}), badgeContainer);
+

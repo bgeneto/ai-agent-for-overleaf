@@ -7,9 +7,23 @@ import { getOptions, encryptApiKey } from '../utils/helper';
 import { IconSelect } from './IconSelect';
 
 const OptionsForm = () => {
+  type MessageType = 'success' | 'error' | 'warning' | 'info';
+  type Feedback = { text: string; type: MessageType };
+
   const [state, setState] = useState<Options>({});
-  const [message, setMessage] = useState<string>();
+  const [message, setMessage] = useState<Feedback | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<Feedback | null>(null);
+  const [addDomainStatus, setAddDomainStatus] = useState<Feedback | null>(null);
   const [newDomain, setNewDomain] = useState<string>('');
+
+  const getStyle = (type: MessageType) => {
+    switch (type) {
+      case 'success': return { color: '#006400', fontWeight: 'bold' };
+      case 'error': return { color: 'red', fontWeight: 'bold' };
+      case 'warning': return { color: 'orange', fontWeight: 'bold' };
+      default: return {};
+    }
+  };
 
   useEffect(() => {
     getOptions().then((options) => {
@@ -49,7 +63,7 @@ const OptionsForm = () => {
     // Let's just encrypt blindly. `encryptApiKey` returns a string.
 
     await chrome.storage.local.set({ [LOCAL_STORAGE_KEY_OPTIONS]: optionsToSave });
-    setMessage('Options saved')
+    setMessage({ text: 'Options saved!', type: 'success' });
   };
 
   const onAddAction = () => {
@@ -70,20 +84,20 @@ const OptionsForm = () => {
   }
 
   const onOptionsChange = (options: Options) => {
-    setMessage('');
+    setMessage(null);
     setState(options);
   }
 
   const version = chrome.runtime.getManifest().version;
 
   const fetchModels = async () => {
-    setMessage('Fetching models...');
+    setMessage({ text: 'Fetching models...', type: 'info' });
     try {
       const baseUrl = state.apiBaseUrl?.replace(/\/+$/, '') || 'https://api.openai.com/v1';
       const apiKey = state.apiKey;
 
       if (!apiKey) {
-        setMessage('Please enter an API key first');
+        setMessage({ text: 'Please enter an API key first', type: 'warning' });
         return;
       }
 
@@ -126,23 +140,25 @@ const OptionsForm = () => {
       }
 
       onOptionsChange(newState);
-      setMessage(`Fetched ${allModels.length} models`);
+      setMessage({ text: `Fetched ${allModels.length} models`, type: 'success' });
     } catch (error) {
       if (error instanceof Error) {
-        setMessage(error.message);
+        setMessage({ text: error.message, type: 'error' });
       } else {
-        setMessage('An unknown error occurred');
+        setMessage({ text: 'An unknown error occurred', type: 'error' });
       }
     }
   };
 
   const testConnection = async () => {
-    setMessage('Testing connection...');
+    setMessage({ text: 'Testing connection...', type: 'info' });
+    setConnectionStatus({ text: 'Testing...', type: 'info' });
     try {
       const baseUrl = state.apiBaseUrl?.replace(/\/+$/, '') || 'https://api.openai.com/v1';
       const apiKey = state.apiKey;
       if (!apiKey) {
-        setMessage('Please enter an API key first');
+        setMessage({ text: 'Please enter an API key first', type: 'warning' });
+        setConnectionStatus({ text: 'Missing API Key', type: 'warning' });
         return;
       }
       const response = await fetch(`${baseUrl}/models`, {
@@ -152,19 +168,30 @@ const OptionsForm = () => {
         }
       });
       if (response.ok) {
-        setMessage('Success! Connection verified.');
+        setMessage({ text: 'Success! Connection verified.', type: 'success' });
+        setConnectionStatus({ text: 'Success!', type: 'success' });
       } else {
-        setMessage(`Failed: ${response.status} ${response.statusText}`);
+        setMessage({ text: `Failed: ${response.status} ${response.statusText}`, type: 'error' });
+        setConnectionStatus({ text: 'Failed', type: 'error' });
       }
     } catch (e) {
-      if (e instanceof Error) setMessage(`Error: ${e.message}`);
-      else setMessage('Connection failed.');
+      if (e instanceof Error) {
+        setMessage({ text: `Error: ${e.message}`, type: 'error' });
+        setConnectionStatus({ text: 'Error', type: 'error' });
+      } else {
+        setMessage({ text: 'Connection failed.', type: 'error' });
+        setConnectionStatus({ text: 'Failed', type: 'error' });
+      }
     }
   };
 
   const addDomain = async () => {
+    setAddDomainStatus({ text: 'Adding...', type: 'info' });
     let domain = newDomain.trim();
-    if (!domain) return;
+    if (!domain) {
+      setAddDomainStatus(null);
+      return;
+    }
 
     // remove trailing slash
     domain = domain.replace(/\/$/, '');
@@ -178,7 +205,7 @@ const OptionsForm = () => {
     try {
       origin = new URL(domain).origin;
     } catch {
-      setMessage('Invalid domain URL');
+      setMessage({ text: 'Invalid domain URL', type: 'error' });
       return;
     }
 
@@ -188,7 +215,8 @@ const OptionsForm = () => {
     });
 
     if (!granted) {
-      setMessage('Permission denied');
+      setMessage({ text: 'Permission denied', type: 'error' });
+      setAddDomainStatus({ text: 'Permission denied', type: 'error' });
       return;
     }
 
@@ -219,12 +247,14 @@ const OptionsForm = () => {
 
       onOptionsChange({ ...state, customDomains: uniqueDomains });
       setNewDomain('');
-      setMessage(`Added domain: ${origin}`);
+      setAddDomainStatus({ text: 'Added!', type: 'success' });
+      setMessage({ text: `Added domain: ${origin}`, type: 'success' });
     } catch (e) {
+      setAddDomainStatus({ text: 'Error', type: 'error' });
       if (e instanceof Error) {
-        setMessage(`Error: ${e.message}`);
+        setMessage({ text: `Error: ${e.message}`, type: 'error' });
       } else {
-        setMessage('Unknown error registering script');
+        setMessage({ text: 'Unknown error registering script', type: 'error' });
       }
     }
   };
@@ -243,7 +273,7 @@ const OptionsForm = () => {
 
       const customDomains = (state.customDomains || []).filter(d => d !== domain);
       onOptionsChange({ ...state, customDomains });
-      setMessage(`Removed domain: ${domain}`);
+      setMessage({ text: `Removed domain: ${domain}`, type: 'success' });
 
       chrome.permissions.remove({
         origins: [domain + '/*']
@@ -251,7 +281,7 @@ const OptionsForm = () => {
 
     } catch (e) {
       if (e instanceof Error) {
-        setMessage(`Error: ${e.message}`);
+        setMessage({ text: `Error: ${e.message}`, type: 'error' });
       }
     }
   };
@@ -264,7 +294,7 @@ const OptionsForm = () => {
           <div class="pure-u-3-4">
             <p>
               For any issues or feature requests, visit:
-              <a target="_blank" href="https://github.com/dsp05/overleaf-copilot/issues">https://github.com/dsp05/overleaf-copilot/issues</a>.
+              <a target="_blank" href="https://github.com/bgeneto/overleaf-copilot/issues">https://github.com/bgeneto/overleaf-copilot/issues</a>.
             </p>
           </div>
           <div class="pure-control-group">
@@ -276,16 +306,21 @@ const OptionsForm = () => {
           </div>
 
           <div class="pure-control-group">
-            <label></label>
-            <button type="button" class="pure-button" onClick={testConnection}>Test Connection</button>
-          </div>
-
-          <div class="pure-control-group">
             <label for="field-api-base-url">API Base URL</label>
             <input type="text" id="field-api-base-url"
               value={state.apiBaseUrl || ''} placeholder="https://api.openai.com/v1" class="pure-input-1-3"
               onInput={(e: any) => onOptionsChange({ ...state, apiBaseUrl: e.currentTarget.value })} />
             <span class="pure-form-message-inline">Optional (for proxies/local).</span>
+          </div>
+
+          <div class="pure-control-group">
+            <label></label>
+            <button type="button" class="pure-button" onClick={testConnection}>Test Connection</button>
+            {!!connectionStatus &&
+              <span style={{ marginLeft: '10px', ...getStyle(connectionStatus.type) }}>
+                {connectionStatus.text}
+              </span>
+            }
           </div>
 
           <div class="pure-control-group">
@@ -321,13 +356,18 @@ const OptionsForm = () => {
             <input class="pure-input-1-4" type="text" id="field-new-domain" placeholder="https://tex.example.com" value={newDomain}
               onChange={(e) => setNewDomain(e.currentTarget.value)} />
             <button class="pure-button" type="button" onClick={addDomain} style="margin-left: 5px">Add</button>
+            {!!addDomainStatus &&
+              <span style={{ marginLeft: '10px', ...getStyle(addDomainStatus.type) }}>
+                {addDomainStatus.text}
+              </span>
+            }
           </div>
           {state.customDomains && state.customDomains.length > 0 &&
             <div class="pure-control-group">
               <label>Active Domains</label>
               <div class="pure-input-1-2" style="display: inline-block; vertical-align: top;">
                 {state.customDomains.map(domain => (
-                  <div style="margin-bottom: 5px;">
+                  <div key={domain} style="margin-bottom: 5px;">
                     <span style="display: inline-block; width: 200px;">{domain}</span>
                     <button class="pure-button" type="button" onClick={() => removeDomain(domain)}>-</button>
                   </div>
@@ -344,9 +384,9 @@ const OptionsForm = () => {
           </div>
           <div class="pure-control-group">
             <label for="field-suggestion-max-output-token">Max output token</label>
-            <input class="pure-input-1-4" type="number" id="field-suggestion-max-output-token" placeholder="100" value={state.suggestionMaxOutputToken}
+            <input class="pure-input-1-4" type="number" id="field-suggestion-max-output-token" placeholder="500" value={state.suggestionMaxOutputToken}
               onChange={(e) => onOptionsChange({ ...state, suggestionMaxOutputToken: parseInt(e.currentTarget.value) })} />
-            <span class="pure-form-message-inline pure-u-1-3">Set the maximum number of tokens generated per suggestion. Default is 100.</span>
+            <span class="pure-form-message-inline pure-u-1-3">Set the maximum number of tokens generated per suggestion. Default is 500.</span>
           </div>
           <div class="pure-control-group">
             <label for="field-suggestion-prompt">Prompt</label>
@@ -463,7 +503,9 @@ const OptionsForm = () => {
               <button type="submit" class="pure-button pure-button-primary">Save</button>
               <button class="pure-button" type="button" onClick={onClose} style="margin-left:10px">Close</button>
               {!!message &&
-                <span class="pure-form-message-inline" style="margin-left: 10px">{message}</span>
+                <span class="pure-form-message-inline" style={{ marginLeft: '10px', ...getStyle(message.type) }}>
+                  {message.text}
+                </span>
               }
             </div>
           </div>

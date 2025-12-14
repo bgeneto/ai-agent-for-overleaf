@@ -1,4 +1,4 @@
-import { LOCAL_STORAGE_KEY_API_KEY, LOCAL_STORAGE_KEY_BASE_URL, LOCAL_STORAGE_KEY_MODEL, LOCAL_STORAGE_KEY_OPTIONS } from "../constants";
+import { DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN, LOCAL_STORAGE_KEY_API_KEY, LOCAL_STORAGE_KEY_BASE_URL, LOCAL_STORAGE_KEY_MODEL, LOCAL_STORAGE_KEY_OPTIONS } from "../constants";
 import { Options, TextContent } from "../types";
 import AES from 'crypto-js/aes';
 import encUtf8 from 'crypto-js/enc-utf8';
@@ -63,6 +63,11 @@ export async function getOptions() {
   options.toolbarActions = toolbarActions;
 
   if (!options.customDomains) options.customDomains = [];
+
+  // Set defaults if not present
+  if (!options.apiBaseUrl) options.apiBaseUrl = 'https://api.openai.com/v1';
+  if (!options.suggestionMaxOutputToken) options.suggestionMaxOutputToken = DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN;
+
   // availableModels can be undefined, implying default logic
 
   return options;
