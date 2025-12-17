@@ -2,6 +2,25 @@ import * as Diff from 'diff';
 import { getCmView } from './helpers';
 import { Suggestion } from '../common/suggestion';
 
+// Helper to safely extract event detail across Firefox isolated/main world boundary
+function getEventDetail<T>(e: CustomEvent<any>): T {
+  const detail = e.detail;
+
+  // Firefox: detail is a string ID pointing to data on window.wrappedJSObject
+  if (typeof detail === 'string' && detail.startsWith('__copilot_event_')) {
+    const win = window as any;
+    if (win[detail]) {
+      const data = win[detail];
+      // Clean up temporary storage
+      delete win[detail];
+      return data as T;
+    }
+  }
+
+  // Chrome/Edge: direct access
+  return detail as T;
+}
+
 export function onAcceptSuggestion() {
   const suggestion = Suggestion.getCurrent();
   if (suggestion?.status !== 'completed') {
@@ -46,42 +65,43 @@ export function onAcceptPartialSuggestion() {
 export function onReplaceContent(
   e: CustomEvent<{ content: string; from: number; to: number }>
 ) {
+  const detail = getEventDetail<{ content: string; from: number; to: number }>(e);
   var view = getCmView();
   const state = view.state;
   if (
-    state.selection.main.from == e.detail.from &&
-    state.selection.main.to == e.detail.to
+    state.selection.main.from == detail.from &&
+    state.selection.main.to == detail.to
   ) {
     const originalContent = state.sliceDoc(
       state.selection.main.from,
       state.selection.main.to
     )
     let changes = [];
-    let diffs = Diff.diffChars(originalContent, e.detail.content);
+    let diffs = Diff.diffChars(originalContent, detail.content);
 
     if (diffs.length >= 500) {
-      diffs = Diff.diffWordsWithSpace(originalContent, e.detail.content);
+      diffs = Diff.diffWordsWithSpace(originalContent, detail.content);
     }
 
     if (diffs.length >= 500) {
       changes.push({
-        from: e.detail.from,
-        to: e.detail.to,
-        insert: e.detail.content,
+        from: detail.from,
+        to: detail.to,
+        insert: detail.content,
       });
     } else {
       let index = 0;
       for (const diff of diffs) {
         if (diff.added) {
           changes.push({
-            from: e.detail.from + index,
-            to: e.detail.from + index,
+            from: detail.from + index,
+            to: detail.from + index,
             insert: diff.value,
           });
         } else if (diff.removed) {
           changes.push({
-            from: e.detail.from + index,
-            to: e.detail.from + index + diff.value.length,
+            from: detail.from + index,
+            to: detail.from + index + diff.value.length,
           });
           index += diff.value.length;
         } else {
@@ -90,7 +110,7 @@ export function onReplaceContent(
       }
     }
 
-    const selection = { anchor: e.detail.from + e.detail.content.length };
+    const selection = { anchor: detail.from + detail.content.length };
     view.dispatch({ changes, selection });
   }
 }
@@ -98,19 +118,20 @@ export function onReplaceContent(
 export function onInsertContent(
   e: CustomEvent<{ content: string; pos?: number }>
 ) {
+  const detail = getEventDetail<{ content: string; pos?: number }>(e);
   const view = getCmView();
   const state = view.state;
-  const insertPos = e.detail.pos !== undefined ? e.detail.pos : state.selection.main.head;
+  const insertPos = detail.pos !== undefined ? detail.pos : state.selection.main.head;
 
   const changes = {
     from: insertPos,
     to: insertPos,
-    insert: e.detail.content
+    insert: detail.content
   };
 
   // Dispatch change and move cursor to end of insertion
   view.dispatch({
     changes,
-    selection: { anchor: insertPos + e.detail.content.length }
+    selection: { anchor: insertPos + detail.content.length }
   });
 }

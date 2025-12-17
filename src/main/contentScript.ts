@@ -40,8 +40,19 @@ function parseShortcut(shortcut: string | undefined) {
 }
 
 // Listen for options updates
-window.addEventListener('copilot:options:update', ((event: CustomEvent<{ options: { completionShortcut?: string } }>) => {
-  parseShortcut(event.detail.options.completionShortcut);
+window.addEventListener('copilot:options:update', ((event: CustomEvent<any>) => {
+  let detail = event.detail;
+
+  // Firefox: detail is a string ID
+  if (typeof detail === 'string' && detail.startsWith('__copilot_event_')) {
+    const win = window as any;
+    if (win[detail]) {
+      detail = win[detail];
+      delete win[detail]; // Cleanup
+    }
+  }
+
+  parseShortcut(detail?.options?.completionShortcut);
 }) as EventListener);
 
 // Handle keyboard shortcuts for accepting suggestions AND triggering completion

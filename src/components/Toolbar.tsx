@@ -5,25 +5,37 @@ import { getImprovement } from "../utils/improvement";
 import { useState } from "preact/hooks";
 import "./styles/Toolbar.css";
 
-// Helper function to create Firefox-safe CustomEvents for cross-context communication
-// Firefox requires cloneInto when dispatching events from isolated world to main world
-function createCrossContextEvent(eventName: string, detail: any): CustomEvent {
-  let clonedDetail = detail;
+// Declare Firefox-specific function
+declare function cloneInto<T>(obj: T, targetScope: any, options?: { cloneFunctions?: boolean }): T;
 
-  // Check if we're in Firefox (cloneInto is Firefox-specific)
-  if (typeof (window as any).cloneInto === 'function') {
+// Helper function to create Firefox-safe CustomEvents for cross-context communication
+// Firefox blocks ALL property access on event.detail when crossing from isolated to main world
+// Solution: Use wrappedJSObject to temporarily store data on the page's window object
+function createCrossContextEvent(eventName: string, detail: any): CustomEvent {
+  // Check if we're in Firefox (has wrappedJSObject)
+  const win = window as any;
+  if (win.wrappedJSObject) {
+    // Store data temporarily on the page's window object
+    const eventId = `__copilot_event_${Date.now()}_${Math.random()}`;
     try {
-      clonedDetail = (window as any).cloneInto(detail, window, { cloneFunctions: false });
+      win.wrappedJSObject[eventId] = cloneInto(detail, win.wrappedJSObject);
     } catch (e) {
-      // Fallback to original detail if cloning fails
-      console.warn('Failed to clone event detail for Firefox:', e);
+      // If cloneInto fails, try direct assignment
+      win.wrappedJSObject[eventId] = detail;
     }
+
+    return new CustomEvent(eventName, {
+      bubbles: true,
+      composed: true,
+      detail: eventId // Just pass the ID string
+    });
   }
 
+  // Chrome/Edge: use direct detail
   return new CustomEvent(eventName, {
     bubbles: true,
     composed: true,
-    detail: clonedDetail,
+    detail: detail,
   });
 }
 

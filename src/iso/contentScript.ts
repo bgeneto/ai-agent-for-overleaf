@@ -11,6 +11,9 @@ import { StatusBadge } from '../components/StatusBadge';
 import { ToolbarEditor } from '../components/ToolbarEditor';
 import { render, h } from 'preact';
 
+// Declare Firefox-specific function
+declare function cloneInto<T>(obj: T, targetScope: any, options?: { cloneFunctions?: boolean }): T;
+
 let options: Options | undefined = undefined;
 let suggestionAbortController: AbortController | null = null;
 let improveAbortController: AbortController | null = null;
@@ -282,9 +285,29 @@ function onCursorUpdate(event: CustomEvent<{ hasSelection: boolean, head?: numbe
 
 async function onOptionsUpdate() {
   options = await getOptions();
-  window.dispatchEvent(
-    new CustomEvent('copilot:options:update', { detail: { options } })
-  );
+
+  // Firefox-safe event dispatch
+  const win = window as any;
+  const detail = { options };
+
+  if (win.wrappedJSObject) {
+    // Firefox: store on wrappedJSObject and pass ID
+    const eventId = `__copilot_event_${Date.now()}_${Math.random()}`;
+    try {
+      win.wrappedJSObject[eventId] = cloneInto(detail, win.wrappedJSObject);
+    } catch (e) {
+      win.wrappedJSObject[eventId] = detail;
+    }
+    window.dispatchEvent(
+      new CustomEvent('copilot:options:update', { detail: eventId })
+    );
+  } else {
+    // Chrome/Edge: direct detail
+    window.dispatchEvent(
+      new CustomEvent('copilot:options:update', { detail })
+    );
+  }
+
   renderBadge();
 }
 
