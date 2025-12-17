@@ -127,11 +127,13 @@ Return pure LaTeX code starting immediately with the corrected content.`,
 **Raw Log:**
 {{error_context}}
 
-Explain what this error means in simple terms and how to fix it in LaTeX.
-Be concise. Use Markdown for formatting.
-If the error refers to a specific line or command, explain it.
-If a package is missing from the LaTeX document, explain how to add it.
-If a command is not recognized, explain how to fix it.`,
+INSTRUCTIONS:
+
+- Explain what this error means in simple terms and how to fix it in LaTeX.
+- Be concise. Use Markdown for formatting.
+- If the error refers to a specific line or command, explain it.
+- If a package is missing from the LaTeX document, explain how to add it.
+- If a command is not recognized, explain how to fix it.`,
 
     /**
      * Prompt template for "Custom Task" action.
