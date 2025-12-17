@@ -94,3 +94,23 @@ export function onReplaceContent(
     view.dispatch({ changes, selection });
   }
 }
+
+export function onInsertContent(
+  e: CustomEvent<{ content: string; pos?: number }>
+) {
+  const view = getCmView();
+  const state = view.state;
+  const insertPos = e.detail.pos !== undefined ? e.detail.pos : state.selection.main.head;
+
+  const changes = {
+    from: insertPos,
+    to: insertPos,
+    insert: e.detail.content
+  };
+
+  // Dispatch change and move cursor to end of insertion
+  view.dispatch({
+    changes,
+    selection: { anchor: insertPos + e.detail.content.length }
+  });
+}

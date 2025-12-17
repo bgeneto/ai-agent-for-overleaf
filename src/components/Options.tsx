@@ -62,6 +62,21 @@ const OptionsForm = () => {
     // The encryption is just obfuscation.
     // Let's just encrypt blindly. `encryptApiKey` returns a string.
 
+    // Validate Toolbar Actions
+    if (optionsToSave.toolbarActions) {
+      for (let i = 0; i < optionsToSave.toolbarActions.length; i++) {
+        const action = optionsToSave.toolbarActions[i];
+        if (!action.name || !action.name.trim()) {
+          setMessage({ text: `Action #${i + 1} must have a name.`, type: 'error' });
+          return;
+        }
+        if (!action.prompt || !action.prompt.trim()) {
+          setMessage({ text: `Action #${i + 1} must have a prompt.`, type: 'error' });
+          return;
+        }
+      }
+    }
+
     await chrome.storage.local.set({ [LOCAL_STORAGE_KEY_OPTIONS]: optionsToSave });
     setMessage({ text: 'Options saved!', type: 'success' });
   };
@@ -380,14 +395,44 @@ const OptionsForm = () => {
           <h2>Suggestion</h2>
           <div class="pure-u-3-4">
             <p>Configure AI-powered completions. Click the Copilot menu or use your keyboard shortcut to trigger completion at the cursor.
-              To accept a suggestion, press Tab to insert the entire text, or use Ctrl/Cmd + right arrow to insert word by word.</p>
+              Menu actions insert text automatically.</p>
           </div>
           <div class="pure-control-group">
             <label for="field-completion-shortcut">Keyboard Shortcut</label>
             <input class="pure-input-1-4" type="text" id="field-completion-shortcut"
-              placeholder="Ctrl+Space" value={state.completionShortcut || ''}
-              onChange={(e) => onOptionsChange({ ...state, completionShortcut: e.currentTarget.value })} />
-            <span class="pure-form-message-inline pure-u-1-3">Shortcut to trigger completion (e.g., Ctrl+Space, Alt+C). Leave empty to disable.</span>
+              placeholder="Ctrl+Shift+C" value={state.completionShortcut || ''}
+              onKeyDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Allow clearing with Backspace/Delete
+                if (e.key === 'Backspace' || e.key === 'Delete') {
+                  onOptionsChange({ ...state, completionShortcut: '' });
+                  return;
+                }
+
+                // Ignore modifier-only keydowns
+                if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+                const parts = [];
+                if (e.ctrlKey) parts.push('Ctrl');
+                if (e.metaKey) parts.push('Meta');
+                if (e.altKey) parts.push('Alt');
+                if (e.shiftKey) parts.push('Shift');
+
+                // Handle Space specially, otherwise use key name
+                let key = e.key;
+                if (key === ' ') key = 'Space';
+                if (key.length === 1) key = key.toUpperCase();
+
+                parts.push(key);
+
+                const shortcut = parts.join('+');
+                onOptionsChange({ ...state, completionShortcut: shortcut });
+              }}
+              readOnly={false}
+            />
+            <span class="pure-form-message-inline pure-u-1-3">Click and press keys to set shortcut. Backspace to clear.</span>
           </div>
           <div class="pure-control-group">
             <label for="field-suggestion-max-output-token">Max output token</label>
@@ -398,7 +443,7 @@ const OptionsForm = () => {
           <div class="pure-control-group">
             <label for="field-suggestion-prompt">Prompt</label>
             <textarea style="height: 9em" class="pure-input-1-4" id="field-suggestion-prompt"
-              placeholder="Continue the academic paper in LaTeX below, making sure to maintain semantic continuity.&#10;&#10;### Beginning of the paper ###&#10;{{before[-1000:]}}&#10;### End of the paper ###"
+              placeholder="Continue the academic paper in LaTeX below, making sure to maintain semantic continuity. Do NOT use markdown.&#10;&#10;### Beginning of the paper ###&#10;{{before[-1000:]}}&#10;### End of the paper ###"
               value={state.suggestionPrompt}
               onChange={(e) => onOptionsChange({ ...state, suggestionPrompt: e.currentTarget.value })} />
             <span class="pure-form-message-inline pure-u-1-3">
@@ -448,20 +493,8 @@ const OptionsForm = () => {
                   </div>
                   <span class="pure-form-message-inline pure-u-1-3">Choose an icon for this action in the toolbar.</span>
                 </div>
-                <div class="pure-control-group">
-                  <label for={"field-on-click" + index}>On Click</label>
-                  <select id={"field-on-click" + index} class="pure-input-1-4" style={{ padding: "0 5px" }} value={action.onClick ?? "show_editor"}
-                    onChange={(e) => {
-                      const toolbarActions = state.toolbarActions;
-                      if (!toolbarActions) return;
-                      toolbarActions[index].onClick = e.currentTarget.value as any;
-                      onOptionsChange({ ...state, toolbarActions });
-                    }} >
-                    <option value="show_editor">Show editor</option>
-                    <option value="replace">Replace</option>
-                  </select>
-                  <span class="pure-form-message-inline pure-u-1-3">Choose the action for clicking the icon: either show the editor or directly replace the content</span>
-                </div>
+                {/* On Click option removed as requested */}
+
                 <div class="pure-control-group">
                   <label for={"field-suggestion-prompt" + index}>Prompt</label>
                   <textarea style="height: 9em" class="pure-input-1-4" id={"field-suggestion-prompt" + index}
@@ -488,20 +521,6 @@ const OptionsForm = () => {
             <button class="pure-button" type="button" onClick={onAddAction}>+</button>
             <span class="pure-form-message-inline">Add a new custom action to the toolbar.</span>
           </div>
-          <div class="pure-controls">
-            <label for="field-search-disabled" class="pure-checkbox">
-              <input type="checkbox" id="field-search-disabled" checked={state.toolbarSearchDisabled}
-                onChange={(e) => onOptionsChange({ ...state, toolbarSearchDisabled: e.currentTarget.checked })} /> Disable Search
-            </label>
-            <span class="pure-form-message-inline pure-u-1-3">Hide the search icon from the toolbar.</span>
-          </div>
-          <div class="pure-controls">
-            <label for="field-toolbar-disabled" class="pure-checkbox">
-              <input type="checkbox" id="field-toolbar-disabled" checked={state.toolbarDisabled}
-                onChange={(e) => onOptionsChange({ ...state, toolbarDisabled: e.currentTarget.checked })} /> Disable Toolbar
-            </label>
-            <span class="pure-form-message-inline pure-u-1-3">Disable the toolbar feature.</span>
-          </div>
         </fieldset>
 
         <div class="pure-g">
@@ -520,7 +539,7 @@ const OptionsForm = () => {
       </form>
       <hr style="margin-top: 20px" />
       <p>Overleaf Copilot. Version: {version}</p>
-    </Fragment>
+    </Fragment >
   );
 }
 

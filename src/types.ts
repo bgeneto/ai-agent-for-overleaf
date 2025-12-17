@@ -50,8 +50,6 @@ export interface Options {
   completionShortcut?: string; // e.g., "Ctrl+Space" or "Alt+C"
 
   toolbarActions?: ToolbarAction[];
-  toolbarSearchDisabled?: boolean;
-  toolbarDisabled?: boolean;
 
   embeddingModel?: string;
   availableEmbeddingModels?: string[];

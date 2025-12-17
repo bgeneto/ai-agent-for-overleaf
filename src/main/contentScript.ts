@@ -1,7 +1,7 @@
 'use strict';
 
 import { getContentBeforeCursor, getCmView, updateSuggestionOnCursorUpdate, getContentAfterCursor } from './helpers';
-import { onAcceptPartialSuggestion, onAcceptSuggestion, onReplaceContent } from './eventHandlers';
+import { onAcceptPartialSuggestion, onAcceptSuggestion, onReplaceContent, onInsertContent } from './eventHandlers';
 import { MAX_LENGTH_AFTER_CURSOR, MAX_LENGTH_BEFORE_CURSOR, MAX_LENGTH_SELECTION } from '../constants';
 
 // Store the configured keyboard shortcut
@@ -130,7 +130,7 @@ function checkSelectionState() {
     // No selection
     window.dispatchEvent(
       new CustomEvent('copilot:cursor:update', {
-        detail: { hasSelection: false },
+        detail: { hasSelection: false, head: head },
       })
     );
   }
@@ -153,6 +153,8 @@ function debouncedSelectionCheck() {
 // Event listeners
 window.addEventListener('copilot:editor:replace', onReplaceContent as EventListener);
 window.addEventListener('copilot:menu:complete', onMenuComplete);
+window.addEventListener('copilot:suggestion:accept', onAcceptSuggestion as EventListener);
+window.addEventListener('copilot:editor:insert', onInsertContent as EventListener);
 
 // Setup keydown listener for Tab/Arrow shortcuts and configurable completion shortcut
 const setupKeydownListener = (n: number) => {

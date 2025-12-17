@@ -36,7 +36,7 @@ export function showToolbar(data: EditorSelectionData, options: Options, signal:
     signal,
     data: data,
     actions: options.toolbarActions ?? [],
-    searchDisabled: !!options.toolbarSearchDisabled,
+    searchDisabled: false,
     onShowEditor: (action) => {
       const toolbar = document.getElementById('copilot-toolbar');
       if (toolbar == null)

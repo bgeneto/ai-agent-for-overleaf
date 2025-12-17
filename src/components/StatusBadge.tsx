@@ -3,15 +3,20 @@ import { Bot, Sparkles, Pencil, Search, Settings, Loader } from 'lucide-preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import './styles/StatusBadge.css';
 
+import { Icon } from "./Icon";
+import { ToolbarAction } from '../types';
+
 interface StatusBadgeProps {
     onComplete: () => void;
     onImprove: () => void;
+    onAction: (action: ToolbarAction) => void;
     onSearch: () => void;
     hasSelection: boolean;
     isLoading: boolean;
+    actions: ToolbarAction[];
 }
 
-export const StatusBadge = ({ onComplete, onImprove, onSearch, hasSelection, isLoading }: StatusBadgeProps) => {
+export const StatusBadge = ({ onComplete, onImprove, onAction, onSearch, hasSelection, isLoading, actions }: StatusBadgeProps) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -37,6 +42,12 @@ export const StatusBadge = ({ onComplete, onImprove, onSearch, hasSelection, isL
         onImprove();
     };
 
+    const handleActionClick = (action: ToolbarAction) => {
+        if (!hasSelection) return;
+        setMenuOpen(false);
+        onAction(action);
+    };
+
     const handleSearch = () => {
         if (!hasSelection) return;
         setMenuOpen(false);
@@ -52,18 +63,31 @@ export const StatusBadge = ({ onComplete, onImprove, onSearch, hasSelection, isL
         <div class="copilot-status-badge" ref={ref}>
             {menuOpen && (
                 <div class="copilot-status-menu">
-                    <div class="copilot-status-menu-item" onClick={handleComplete}>
+                    <div class="copilot-status-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={handleComplete}>
                         <div class="copilot-status-menu-item-icon complete">
                             <Sparkles size={14} />
                         </div>
                         <span class="copilot-status-menu-item-text">Complete at Cursor</span>
                     </div>
+
                     <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={handleImprove} title={!hasSelection ? 'Select text first' : ''}>
                         <div class="copilot-status-menu-item-icon improve">
                             <Pencil size={14} />
                         </div>
                         <span class="copilot-status-menu-item-text">Improve Writing</span>
                     </div>
+
+                    {actions.map((action, index) => (
+                        <div key={index} class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`}
+                            onClick={() => handleActionClick(action)}
+                            title={!hasSelection ? 'Select text first' : ''}>
+                            <div class="copilot-status-menu-item-icon improve">
+                                <Icon name={action.icon} size={14} />
+                            </div>
+                            <span class="copilot-status-menu-item-text">{action.name || "Action"}</span>
+                        </div>
+                    ))}
+
                     <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={handleSearch} title={!hasSelection ? 'Select text first' : ''}>
                         <div class="copilot-status-menu-item-icon search">
                             <Search size={14} />

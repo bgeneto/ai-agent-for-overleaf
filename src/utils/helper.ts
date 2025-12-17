@@ -12,18 +12,16 @@ const PromptVariableRegex = /\{\{[\w]*(selection|before|after)(\[([-]?\d*):([-]?
 export function postProcessToken(token: string | null) {
   if (!token) return '';
 
+  // Remove starting fence like ```latex, ```tex, or just ```
+  // Regex explanation:
+  // ^\s*        : start with optional whitespace
+  // ```         : literal backticks
+  // (latex|tex)?: optional language identifier
+  // \s*         : optional newlines/whitespace
+  token = token.replace(/^\s*```(latex|tex)?\s*/i, '');
 
-  for (const prefix of Prefixes) {
-    if (token.startsWith(prefix)) {
-      token = token.substring(prefix.length);
-    }
-  }
-
-  for (const suffix of Suffixes) {
-    if (token.endsWith(suffix)) {
-      token = token.substring(0, token.length - suffix.length);
-    }
-  }
+  // Remove ending fence like ```
+  token = token.replace(/\s*```\s*$/, '');
 
   return token;
 }
@@ -58,8 +56,9 @@ export async function getOptions() {
   if (!options.apiBaseUrl && !!data[LOCAL_STORAGE_KEY_BASE_URL]) options.apiBaseUrl = data[LOCAL_STORAGE_KEY_BASE_URL];
   if (!options.model && !!data[LOCAL_STORAGE_KEY_MODEL]) options.model = data[LOCAL_STORAGE_KEY_MODEL];
 
-  // By default, always add a rewrite action in the toolbar.
-  if (toolbarActions.length === 0) toolbarActions.push({ name: '', prompt: '', icon: '', onClick: 'show_editor' });
+  // By default, always add a rewrite action in the toolbar - REVERTED.
+  // We now have a hardcoded "Improve Writing" button. Custom actions are optional.
+  // if (toolbarActions.length === 0) toolbarActions.push({ name: '', prompt: '', icon: '', onClick: 'show_editor' });
   options.toolbarActions = toolbarActions;
 
   if (!options.customDomains) options.customDomains = [];
@@ -67,6 +66,7 @@ export async function getOptions() {
   // Set defaults if not present
   if (!options.apiBaseUrl) options.apiBaseUrl = 'https://api.openai.com/v1';
   if (!options.suggestionMaxOutputToken) options.suggestionMaxOutputToken = DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN;
+  if (!options.completionShortcut) options.completionShortcut = 'Ctrl+Shift+C';
 
   // availableModels can be undefined, implying default logic
 
