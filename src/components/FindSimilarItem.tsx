@@ -11,6 +11,9 @@ export interface FindSimilarMetadata {
 }
 
 export const FindSimilarItem = ({ metadata, data }: { metadata: FindSimilarMetadata, data: FindSimilarData }) => {
+  // Guard against undefined metadata (e.g., arXiv API errors or mismatched arrays)
+  if (!metadata) return null;
+
   // Security Note: Ensure metadata content is treated as text, not HTML. 
   // Preact/React escapes data by default. Do not use dangerouslySetInnerHTML here.
   return <div>

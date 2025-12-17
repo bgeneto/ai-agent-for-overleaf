@@ -128,8 +128,15 @@ function openToolbarEditor(action: any, data: any) {
 }
 
 
+
 // Handle generic action from menu
 function handleAction(action: { name: string, prompt: string, icon: string }) {
+  // Special handling for Explain Error
+  if (action.prompt === 'EXPLAIN_ERROR') {
+    handleExplainError(action);
+    return;
+  }
+
   if (!currentSelection) return;
 
   // Convert selection to editor data format
@@ -141,6 +148,62 @@ function handleAction(action: { name: string, prompt: string, icon: string }) {
   };
 
   openToolbarEditor(action, data);
+}
+
+// Handle "Explain Error" action
+async function handleExplainError(action: { name: string, prompt: string, icon: string }) {
+  // Find the error element in the logs pane
+  // Selector provided by user: #panel-pdf > div > div.logs-pane > div > div:nth-child(2)
+  // User requested to use the first log entry specifically
+  const errorElement = document.querySelector('.logs-pane-content > .log-entry');
+
+  if (!errorElement) {
+    alert("No active compilation error found in the logs pane.");
+    return;
+  }
+
+  // Extract relevant text
+  const title = errorElement.querySelector('.log-entry-header-title')?.textContent || "Unknown Error";
+  const rawContent = errorElement.querySelector('.log-entry-content-raw')?.textContent || "";
+  const formattedContent = errorElement.querySelector('.log-entry-formatted-content')?.textContent || "";
+
+  // Combine context
+  const errorCtx = `Title: ${title}\n\nMessage: ${formattedContent}\n\nRaw Log:\n${rawContent}`;
+
+  // Validate length
+  if (errorCtx.trim().length < 20) {
+    alert("Error content is too short to explain. Please check the logs manually.");
+    return;
+  }
+
+  // Render side panel
+  const rightContainer = document.querySelector('.ide-react-panel[data-panel-id="panel-pdf"]');
+  if (!rightContainer) return;
+
+  document.getElementById('copilot-side-panel')?.remove();
+  const sidePanel = document.createElement('div');
+  sidePanel.setAttribute('id', 'copilot-side-panel');
+
+  // Reuse styles from FindSimilar or generic styles
+  sidePanel.style.height = '100%';
+  sidePanel.style.backgroundColor = 'var(--ol-panel-bg, #fff)';
+  sidePanel.style.zIndex = '100';
+  sidePanel.style.overflow = 'hidden';
+  sidePanel.style.display = 'flex';
+  sidePanel.style.flexDirection = 'column';
+
+  rightContainer.appendChild(sidePanel);
+
+  if (options) {
+    // Dynamically import ExplainError to avoid circular deps if any (though static import is fine here)
+    const { ExplainError } = await import('../components/ExplainError');
+
+    render(h(ExplainError, {
+      errorCtx,
+      options,
+      onClose: () => document.getElementById('copilot-side-panel')?.remove()
+    }), sidePanel);
+  }
 }
 
 // Handle "Find Similar" action from menu

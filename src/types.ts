@@ -55,6 +55,7 @@ export interface Options {
   embeddingModel?: string;
   availableEmbeddingModels?: string[];
   customDomains?: string[];
+  explainErrorPrompt?: string;
 }
 export interface StreamChunk {
   kind: "token" | "error",

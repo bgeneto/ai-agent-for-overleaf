@@ -12,7 +12,7 @@ export const PROMPTS = {
      * Prompt for "Complete at Cursor" feature.
      * Used when the user wants the LLM to continue writing from the current position.
      */
-    COMPLETION: `You are a LaTeX writing companion and content continuation expert. Continue writing from where the text below ends, maintaining the same topic, argument flow, writing style, tone, and language. Output ONLY the continuation text with proper LaTeX syntax and zero commentary.
+    COMPLETION: `You are a LaTeX academic writing companion and content continuation expert. Continue writing from where the text below ends, maintaining the same topic, argument flow, writing style, tone, and language. Output ONLY the continuation text with proper LaTeX syntax and zero commentary.
 
 ### Text to be continued ###
 {{contextContent}}
@@ -114,7 +114,24 @@ Return pure LaTeX code starting immediately with the corrected content.`,
      */
     DEFAULT_IMPROVE_FALLBACK: `Rewrite and improve the following LaTeX content. Output ONLY valid LaTeX code, no markdown or explanations:
 
-{{selection}}`
+{{selection}}`,
+
+    /**
+     * Prompt for "Explain Error" action.
+     * Used to explain compilation errors to the user.
+     */
+    EXPLAIN_ERROR: `You are a helper for LaTeX users. The user is facing the following compilation error.
+
+**Error Title:** {{error_title}}
+
+**Raw Log:**
+{{error_context}}
+
+Explain what this error means in simple terms and how to fix it in LaTeX.
+Be concise. Use Markdown for formatting.
+If the error refers to a specific line or command, explain it.
+If a package is missing from the LaTeX document, explain how to add it.
+If a command is not recognized, explain how to fix it.`
 } as const;
 
 /**

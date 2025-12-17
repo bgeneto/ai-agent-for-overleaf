@@ -1,10 +1,11 @@
 import { render, Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks'
-import 'purecss/build/pure-min.css';
 import { LOCAL_STORAGE_KEY_OPTIONS, MODELS } from '../constants';
 import { Options } from '../types';
 import { getOptions, encryptApiKey } from '../utils/helper';
 import { IconSelect } from './IconSelect';
+import { Key, Globe, Zap, Palette, Save, X, RefreshCw, Plus, Trash2, Check, AlertCircle } from 'lucide-preact';
+import './styles/Options.css';
 
 const OptionsForm = () => {
   type MessageType = 'success' | 'error' | 'warning' | 'info';
@@ -16,15 +17,6 @@ const OptionsForm = () => {
   const [addDomainStatus, setAddDomainStatus] = useState<Feedback | null>(null);
   const [newDomain, setNewDomain] = useState<string>('');
 
-  const getStyle = (type: MessageType) => {
-    switch (type) {
-      case 'success': return { color: '#006400', fontWeight: 'bold' };
-      case 'error': return { color: 'red', fontWeight: 'bold' };
-      case 'warning': return { color: 'orange', fontWeight: 'bold' };
-      default: return {};
-    }
-  };
-
   useEffect(() => {
     getOptions().then((options) => {
       onOptionsChange(options);
@@ -33,34 +25,18 @@ const OptionsForm = () => {
 
   const onSubmit = async (e: Event) => {
     e.preventDefault();
-    const optionsToSave = { ...state };
-    if (optionsToSave.apiKey && !optionsToSave.apiKey.startsWith('sk-') && !optionsToSave.apiKey.startsWith('ey')) {
-      // It might be already encrypted if we didn't decrypt successfuly?
-      // No, getOptions decrypts it.
-      // But wait, if user pasted a key, it starts with sk-.
-      // If we encrypt it, it won't start with sk-.
-      // So we should encrypt it.
-      optionsToSave.apiKey = encryptApiKey(optionsToSave.apiKey);
-    } else if (optionsToSave.apiKey) {
-      // It implies it is already encrypted or legacy that we want to encrypt?
-      // If it starts with sk- (legacy plaintext), we want to encrypt it.
-      // If it is newly typed by user, it starts with sk-.
-      // So basically always encrypt if it looks like a key.
-      // Our simple "is it encrypted" check in helper was: try decrypt, if fail...
-      // Actually helper says: if (options.apiKey.startsWith('sk-')) { // Legacy plaintext }
-      // So if it starts with sk-, it is plaintext.
-      optionsToSave.apiKey = encryptApiKey(optionsToSave.apiKey);
+
+    // Auto-add any pending domain before saving
+    if (newDomain.trim()) {
+      await addDomain();
     }
 
-    // Actually, simpler logic: Always encrypt whatever is in the field before saving, 
-    // UNLESS it looks like it's already encrypted (which shouldn't happen if we decrypt on load).
-    // But wait, if we save it, then `state` still has plaintext.
-    // Next time we load `getOptions`, it decrypts.
-
-    // What if the user enters a non-sk key (e.g. Azure key or other provider)?
-    // The previous code supported `apiBaseUrl`.
-    // The encryption is just obfuscation.
-    // Let's just encrypt blindly. `encryptApiKey` returns a string.
+    const optionsToSave = { ...state };
+    if (optionsToSave.apiKey && !optionsToSave.apiKey.startsWith('sk-') && !optionsToSave.apiKey.startsWith('ey')) {
+      optionsToSave.apiKey = encryptApiKey(optionsToSave.apiKey);
+    } else if (optionsToSave.apiKey) {
+      optionsToSave.apiKey = encryptApiKey(optionsToSave.apiKey);
+    }
 
     // Validate Toolbar Actions
     if (optionsToSave.toolbarActions) {
@@ -78,7 +54,7 @@ const OptionsForm = () => {
     }
 
     await chrome.storage.local.set({ [LOCAL_STORAGE_KEY_OPTIONS]: optionsToSave });
-    setMessage({ text: 'Options saved!', type: 'success' });
+    setMessage({ text: 'Settings saved successfully!', type: 'success' });
   };
 
   const onAddAction = () => {
@@ -89,7 +65,7 @@ const OptionsForm = () => {
 
   const onDeleteAction = (index: number) => {
     const toolbarActions = state.toolbarActions;
-    if (!toolbarActions || index <= 0) return;
+    if (!toolbarActions || index < 0) return;
     toolbarActions.splice(index, 1);
     onOptionsChange({ ...state, toolbarActions });
   };
@@ -115,9 +91,6 @@ const OptionsForm = () => {
         setMessage({ text: 'Please enter an API key first', type: 'warning' });
         return;
       }
-
-      // If encrypted, we can't fetch. But state.apiKey should be decrypted by getOptions logic?
-      // Wait, on load, getOptions decrypts it. So state.apiKey is plaintext. Correct.
 
       const response = await fetch(`${baseUrl}/models`, {
         headers: {
@@ -183,8 +156,7 @@ const OptionsForm = () => {
         }
       });
       if (response.ok) {
-        setConnectionStatus({ text: 'Success!', type: 'success' });
-        // Auto-refresh models on successful connection
+        setConnectionStatus({ text: 'Connected', type: 'success' });
         await fetchModels();
       } else {
         setMessage({ text: `Failed: ${response.status} ${response.statusText}`, type: 'error' });
@@ -209,10 +181,8 @@ const OptionsForm = () => {
       return;
     }
 
-    // remove trailing slash
     domain = domain.replace(/\/$/, '');
 
-    // Ensure protocol
     if (!domain.startsWith('http')) {
       domain = 'https://' + domain;
     }
@@ -225,7 +195,6 @@ const OptionsForm = () => {
       return;
     }
 
-    // Permission request
     const granted = await (chrome as any).permissions.request({
       origins: [origin + '/*']
     });
@@ -258,7 +227,6 @@ const OptionsForm = () => {
       ]);
 
       const customDomains = [...(state.customDomains || []), origin];
-      // Deduplicate
       const uniqueDomains = Array.from(new Set(customDomains));
 
       onOptionsChange({ ...state, customDomains: uniqueDomains });
@@ -278,7 +246,6 @@ const OptionsForm = () => {
   const removeDomain = async (domain: string) => {
     try {
       const idSuffix = domain.replace(/[^a-zA-Z0-9]/g, '-');
-      // unregisterContentScripts might fail if ids don't exist, but we should try
       try {
         await (chrome as any).scripting.unregisterContentScripts({
           ids: [`main-${idSuffix}`, `iso-${idSuffix}`]
@@ -302,237 +269,378 @@ const OptionsForm = () => {
     }
   };
 
+  const StatusBadge = ({ status }: { status: Feedback | null }) => {
+    if (!status) return null;
+    return (
+      <span className={`status-badge ${status.type}`}>
+        {status.type === 'success' && <Check size={14} />}
+        {status.type === 'error' && <AlertCircle size={14} />}
+        {status.text}
+      </span>
+    );
+  };
+
   return (
-    <Fragment>
-      <form class="pure-form pure-form-aligned" onSubmit={onSubmit}>
-        <fieldset>
-          <legend><h1>Options</h1></legend>
-          <div class="pure-u-3-4">
-            <p>
-              For any issues or feature requests, visit:
-              <a target="_blank" href="https://github.com/bgeneto/ai-agent-for-overleaf/issues">https://github.com/bgeneto/ai-agent-for-overleaf/issues</a>.
-            </p>
+    <form onSubmit={onSubmit}>
+      <div className="options-container">
+        {/* Header */}
+        <header className="options-header">
+          <div className="options-header-title">
+            <div className="options-header-icon">
+              <img src="icons/icon_48.png" alt="AI Agent" width={48} height={48} />
+            </div>
+            <div>
+              <h1>AI Agent for Overleaf</h1>
+              <p className="options-subtitle">
+                Need help? <a href="https://github.com/bgeneto/ai-agent-for-overleaf/issues" target="_blank">Report an issue</a>
+              </p>
+            </div>
           </div>
-          <div class="pure-control-group">
-            <label for="field-api-key">OpenAI API Key</label>
-            <input type="password" id="field-api-key" required
-              value={state.apiKey || ''} placeholder="sk-..." class="pure-input-1-3"
-              onInput={(e: any) => onOptionsChange({ ...state, apiKey: e.currentTarget.value })} />
-            <span class="pure-form-message-inline">Required for all features.</span>
-          </div>
+          <span className="options-version">v{version}</span>
+        </header>
 
-          <div class="pure-control-group">
-            <label for="field-api-base-url">API Base URL</label>
-            <input type="text" id="field-api-base-url"
-              value={state.apiBaseUrl || ''} placeholder="https://api.openai.com/v1" class="pure-input-1-3"
-              onInput={(e: any) => onOptionsChange({ ...state, apiBaseUrl: e.currentTarget.value })} />
-            <span class="pure-form-message-inline">Optional (for proxies/local).</span>
+        {/* API Configuration Card */}
+        <div className="options-card">
+          <div className="options-card-header">
+            <div className="options-card-icon api">
+              <Key size={18} />
+            </div>
+            <div className="options-card-title">
+              <h2>API Configuration</h2>
+              <p>Configure your OpenAI-compatible API connection</p>
+            </div>
           </div>
-
-          <div class="pure-control-group">
-            <label></label>
-            <button type="button" class="pure-button" onClick={testConnection}>Test Connection</button>
-            {!!connectionStatus &&
-              <span style={{ marginLeft: '10px', ...getStyle(connectionStatus.type) }}>
-                {connectionStatus.text}
-              </span>
-            }
-          </div>
-
-          <div class="pure-control-group">
-            <label for="field-model">Chat Model</label>
-            <select style="padding-top: 0px; padding-bottom: 0px" id="field-model" class="pure-input-1-4"
-              value={state.model}
-              onChange={(e: any) => onOptionsChange({ ...state, model: e.currentTarget.value })}>
-              {(state.availableModels && state.availableModels.length > 0 ? state.availableModels : MODELS).map((model) => (
-                <option value={model} selected={model === state.model}>{model}</option>
-              ))}
-            </select>
-            <button type="button" style="margin-left: 10px;" class="pure-button" onClick={fetchModels}>Refresh Models</button>
-          </div>
-
-          <div class="pure-control-group">
-            <label for="field-embedding-model">Embedding Model</label>
-            <select style="padding-top: 0px; padding-bottom: 0px" id="field-embedding-model" class="pure-input-1-4"
-              value={state.embeddingModel}
-              onChange={(e: any) => onOptionsChange({ ...state, embeddingModel: e.currentTarget.value })}>
-              <option value="" disabled selected={!state.embeddingModel}>Select an embedding model</option>
-              {(state.availableEmbeddingModels || ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]).map((model) => (
-                <option value={model} selected={model === state.embeddingModel}>{model}</option>
-              ))}
-            </select>
-            <span class="pure-form-message-inline pure-u-1-3">For "Find Similar" feature.</span>
-          </div>
-          <h2>Custom Domains</h2>
-          <div class="pure-u-3-4">
-            <p>Add self-hosted Overleaf instances here. You will need to grant permission for the extension to run on these domains.</p>
-          </div>
-          <div class="pure-control-group">
-            <label for="field-new-domain">Add Domain</label>
-            <input class="pure-input-1-4" type="text" id="field-new-domain" placeholder="https://tex.example.com" value={newDomain}
-              onChange={(e) => setNewDomain(e.currentTarget.value)} />
-            <button class="pure-button" type="button" onClick={addDomain} style="margin-left: 5px">Add</button>
-            {!!addDomainStatus &&
-              <span style={{ marginLeft: '10px', ...getStyle(addDomainStatus.type) }}>
-                {addDomainStatus.text}
-              </span>
-            }
-          </div>
-          {state.customDomains && state.customDomains.length > 0 &&
-            <div class="pure-control-group">
-              <label>Active Domains</label>
-              <div class="pure-input-1-2" style="display: inline-block; vertical-align: top;">
-                {state.customDomains.map(domain => (
-                  <div key={domain} style="margin-bottom: 5px;">
-                    <span style="display: inline-block; width: 200px;">{domain}</span>
-                    <button class="pure-button" type="button" onClick={() => removeDomain(domain)}>-</button>
-                  </div>
-                ))}
+          <div className="options-card-content">
+            <div className="form-group">
+              <div className="form-row">
+                <label className="form-label">API Key</label>
+                <div className="form-control">
+                  <input
+                    type="password"
+                    required
+                    value={state.apiKey || ''}
+                    placeholder="sk-..."
+                    onInput={(e: any) => onOptionsChange({ ...state, apiKey: e.currentTarget.value })}
+                  />
+                  <span className="form-hint">Required for all AI features</span>
+                </div>
               </div>
             </div>
-          }
 
-          <h2>Suggestion</h2>
-          <div class="pure-u-3-4">
-            <p>Configure AI-powered completions. Click the AI Agent menu or use your keyboard shortcut to trigger completion at the cursor.
-              Menu actions insert text automatically.</p>
-          </div>
-          <div class="pure-control-group">
-            <label for="field-completion-shortcut">Keyboard Shortcut</label>
-            <input class="pure-input-1-4" type="text" id="field-completion-shortcut"
-              placeholder="Ctrl+Shift+C" value={state.completionShortcut || ''}
-              onKeyDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-
-                // Allow clearing with Backspace/Delete
-                if (e.key === 'Backspace' || e.key === 'Delete') {
-                  onOptionsChange({ ...state, completionShortcut: '' });
-                  return;
-                }
-
-                // Ignore modifier-only keydowns
-                if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
-
-                const parts = [];
-                if (e.ctrlKey) parts.push('Ctrl');
-                if (e.metaKey) parts.push('Meta');
-                if (e.altKey) parts.push('Alt');
-                if (e.shiftKey) parts.push('Shift');
-
-                // Handle Space specially, otherwise use key name
-                let key = e.key;
-                if (key === ' ') key = 'Space';
-                if (key.length === 1) key = key.toUpperCase();
-
-                parts.push(key);
-
-                const shortcut = parts.join('+');
-                onOptionsChange({ ...state, completionShortcut: shortcut });
-              }}
-              readOnly={false}
-            />
-            <span class="pure-form-message-inline pure-u-1-3">Click and press keys to set shortcut. Backspace to clear.</span>
-          </div>
-          <div class="pure-control-group">
-            <label for="field-suggestion-max-output-token">Max output token</label>
-            <input class="pure-input-1-4" type="number" id="field-suggestion-max-output-token" placeholder="1024" value={state.suggestionMaxOutputToken}
-              onChange={(e) => onOptionsChange({ ...state, suggestionMaxOutputToken: parseInt(e.currentTarget.value) })} />
-            <span class="pure-form-message-inline pure-u-1-3">Set the maximum number of tokens generated per suggestion. Default is 1024.</span>
-          </div>
-
-          <h2>Toolbar</h2>
-          <div class="pure-u-3-4">
-            <p>Use this section to add new options/actions to the toolbar menu. You can add and customize multiple actions. These actions are shown when you select a piece of text in the editor and click on the toolbar.</p>
-          </div>
-          {
-            state.toolbarActions?.map((action, index) => (
-              <Fragment>
-                <div class="pure-control-group">
-                  <label for={"field-action-name" + index}>#{index + 1} Action Name</label>
-                  <input type="text" id={"field-action-name" + index} class="pure-input-1-4" placeholder="Rewrite" value={action.name}
-                    onChange={(e) => {
-                      const toolbarActions = state.toolbarActions;
-                      if (!toolbarActions) return;
-                      toolbarActions[index].name = e.currentTarget.value;
-                      onOptionsChange({ ...state, toolbarActions });
-                    }} />
-                  {index > 0 && <button class="pure-button" style="margin-left: 5px" onClick={() => onDeleteAction(index)}>-</button>}
+            <div className="form-group">
+              <div className="form-row">
+                <label className="form-label">Base URL</label>
+                <div className="form-control">
+                  <input
+                    type="text"
+                    value={state.apiBaseUrl || ''}
+                    placeholder="https://api.openai.com/v1"
+                    onInput={(e: any) => onOptionsChange({ ...state, apiBaseUrl: e.currentTarget.value })}
+                  />
+                  <span className="form-hint">Optional: Use for custom endpoints or local proxies</span>
                 </div>
-                <div class="pure-control-group">
-                  <label for={"field-action-icon" + index} style="line-height: 26px; vertical-align: top">Icon</label>
-                  <div class="pure-input-1-4" style="display:inline-block">
-                    <IconSelect selected={action.icon} onChange={(value) => {
-                      const toolbarActions = state.toolbarActions;
-                      if (!toolbarActions) return;
-                      toolbarActions[index].icon = value;
-                      onOptionsChange({ ...state, toolbarActions });
-                    }} />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <div className="form-row inline">
+                <label className="form-label"></label>
+                <div className="form-control">
+                  <div className="form-control-row">
+                    <button type="button" className="btn btn-secondary" onClick={testConnection}>
+                      <RefreshCw size={16} />
+                      Test Connection
+                    </button>
+                    <StatusBadge status={connectionStatus} />
                   </div>
-                  <span class="pure-form-message-inline pure-u-1-3">Choose an icon for this action in the toolbar.</span>
                 </div>
-                {/* On Click option removed as requested */}
+              </div>
+            </div>
 
-                <div class="pure-control-group">
-                  <label for={"field-suggestion-prompt" + index}>Prompt</label>
-                  <textarea style="height: 9em" class="pure-input-1-4" id={"field-suggestion-prompt" + index}
-                    placeholder="Rewrite and improve the following content:&#10;{{selection}}&#10;" value={action.prompt}
-                    onChange={(e) => {
-                      const toolbarActions = state.toolbarActions;
-                      if (!toolbarActions) return;
-                      toolbarActions[index].prompt = e.currentTarget.value;
-                      onOptionsChange({ ...state, toolbarActions });
-                    }} />
-                  <span class="pure-form-message-inline pure-u-1-3">
-                    <span>
-                      Available variables are:<br /><br />
-                      <b>selection</b>: Selected content.<br />
-                      <b>before</b>: Text before the cursor (max 5000 chars).<br />
-                      <b>after</b>: Text after the cursor (max 5000 chars).<br /><br />
-                      Add variables in the template using a Jinja like format, e.g. <code>&#123;&#123; selection &#125;&#125;</code>.
-                    </span>
-                  </span>
+            <div className="form-group">
+              <div className="form-row">
+                <label className="form-label">Chat Model</label>
+                <div className="form-control">
+                  <div className="form-control-row">
+                    <select
+                      value={state.model}
+                      onChange={(e: any) => onOptionsChange({ ...state, model: e.currentTarget.value })}
+                      style={{ maxWidth: '280px' }}
+                    >
+                      {(state.availableModels && state.availableModels.length > 0 ? state.availableModels : MODELS).map((model) => (
+                        <option value={model} selected={model === state.model}>{model}</option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn btn-secondary btn-icon" onClick={fetchModels} title="Refresh models">
+                      <RefreshCw size={16} />
+                    </button>
+                  </div>
                 </div>
-              </Fragment>))
-          }
-          <div class="pure-controls">
-            <button class="pure-button" type="button" onClick={onAddAction}>+</button>
-            <span class="pure-form-message-inline">Add a new custom action to the toolbar.</span>
-          </div>
-        </fieldset>
+              </div>
+            </div>
 
-        <div class="pure-g">
-          <div class="pure-u-1-2">
-            <div class="pure-controls">
-              <button type="submit" class="pure-button pure-button-primary">Save</button>
-              <button class="pure-button" type="button" onClick={onClose} style="margin-left:10px">Close</button>
-              {!!message &&
-                <span class="pure-form-message-inline" style={{ marginLeft: '10px', ...getStyle(message.type) }}>
-                  {message.text}
-                </span>
-              }
+            <div className="form-group">
+              <div className="form-row">
+                <label className="form-label">Embedding Model</label>
+                <div className="form-control">
+                  <select
+                    value={state.embeddingModel}
+                    onChange={(e: any) => onOptionsChange({ ...state, embeddingModel: e.currentTarget.value })}
+                    style={{ maxWidth: '280px' }}
+                  >
+                    <option value="" disabled selected={!state.embeddingModel}>Select an embedding model</option>
+                    {(state.availableEmbeddingModels || ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]).map((model) => (
+                      <option value={model} selected={model === state.embeddingModel}>{model}</option>
+                    ))}
+                  </select>
+                  <span className="form-hint">Used for "Find Similar Papers" feature</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </form>
-      <hr style="margin-top: 20px" />
-      <p>AI Agent for Overleaf. Version: {version} by bgeneto.</p>
-    </Fragment >
+
+        {/* Custom Domains Card */}
+        <div className="options-card">
+          <div className="options-card-header">
+            <div className="options-card-icon domains">
+              <Globe size={18} />
+            </div>
+            <div className="options-card-title">
+              <h2>Custom Domains</h2>
+              <p>Add self-hosted Overleaf instances</p>
+            </div>
+          </div>
+          <div className="options-card-content">
+            <div className="form-group">
+              <div className="form-row inline">
+                <label className="form-label">Add Domain</label>
+                <div className="form-control">
+                  <div className="form-control-row">
+                    <input
+                      type="text"
+                      placeholder="https://tex.example.com"
+                      value={newDomain}
+                      onChange={(e) => setNewDomain(e.currentTarget.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addDomain();
+                        }
+                      }}
+                      onBlur={() => {
+                        // Auto-add domain when user clicks away (if not empty)
+                        if (newDomain.trim()) {
+                          addDomain();
+                        }
+                      }}
+                      style={{ maxWidth: '300px' }}
+                    />
+                    <button className="btn btn-add" type="button" onClick={addDomain}>
+                      <Plus size={16} />
+                      Add
+                    </button>
+                    <StatusBadge status={addDomainStatus} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {state.customDomains && state.customDomains.length > 0 && (
+              <div className="domain-list">
+                {state.customDomains.map(domain => (
+                  <div className="domain-item" key={domain}>
+                    <span className="domain-item-url">{domain}</span>
+                    <button className="btn btn-danger btn-icon" type="button" onClick={() => removeDomain(domain)} title="Remove domain">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Suggestions Card */}
+        <div className="options-card">
+          <div className="options-card-header">
+            <div className="options-card-icon suggestion">
+              <Zap size={18} />
+            </div>
+            <div className="options-card-title">
+              <h2>AI Suggestions</h2>
+              <p>Configure auto-completion behavior</p>
+            </div>
+          </div>
+          <div className="options-card-content">
+            <div className="form-group">
+              <div className="form-row">
+                <label className="form-label">Keyboard Shortcut</label>
+                <div className="form-control">
+                  <input
+                    type="text"
+                    placeholder="Ctrl+Shift+C"
+                    value={state.completionShortcut || ''}
+                    style={{ maxWidth: '200px' }}
+                    onKeyDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      if (e.key === 'Backspace' || e.key === 'Delete') {
+                        onOptionsChange({ ...state, completionShortcut: '' });
+                        return;
+                      }
+
+                      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+                      const parts = [];
+                      if (e.ctrlKey) parts.push('Ctrl');
+                      if (e.metaKey) parts.push('Meta');
+                      if (e.altKey) parts.push('Alt');
+                      if (e.shiftKey) parts.push('Shift');
+
+                      let key = e.key;
+                      if (key === ' ') key = 'Space';
+                      if (key.length === 1) key = key.toUpperCase();
+
+                      parts.push(key);
+                      const shortcut = parts.join('+');
+                      onOptionsChange({ ...state, completionShortcut: shortcut });
+                    }}
+                  />
+                  <span className="form-hint">Click and press keys to set. Backspace to clear.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <div className="form-row">
+                <label className="form-label">Max Output Tokens</label>
+                <div className="form-control">
+                  <input
+                    type="number"
+                    placeholder="1024"
+                    value={state.suggestionMaxOutputToken}
+                    onChange={(e) => onOptionsChange({ ...state, suggestionMaxOutputToken: parseInt(e.currentTarget.value) })}
+                  />
+                  <span className="form-hint">Maximum tokens per suggestion (default: 1024)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Toolbar Actions Card */}
+        <div className="options-card">
+          <div className="options-card-header">
+            <div className="options-card-icon toolbar">
+              <Palette size={18} />
+            </div>
+            <div className="options-card-title">
+              <h2>Custom Toolbar Actions</h2>
+              <p>Add custom AI actions to the toolbar menu</p>
+            </div>
+          </div>
+          <div className="options-card-content">
+            {state.toolbarActions?.map((action, index) => (
+              <div className="action-card" key={index}>
+                <div className="action-card-header">
+                  <span className="action-card-number">Action #{index + 1}</span>
+                  <button className="btn btn-danger btn-icon" type="button" onClick={() => onDeleteAction(index)} title="Delete action">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                <div className="form-group">
+                  <div className="form-row">
+                    <label className="form-label">Name</label>
+                    <div className="form-control">
+                      <input
+                        type="text"
+                        placeholder="Rewrite"
+                        value={action.name}
+                        onChange={(e) => {
+                          const toolbarActions = state.toolbarActions;
+                          if (!toolbarActions) return;
+                          toolbarActions[index].name = e.currentTarget.value;
+                          onOptionsChange({ ...state, toolbarActions });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <div className="form-row inline">
+                    <label className="form-label">Icon</label>
+                    <div className="form-control">
+                      <div className="icon-select-wrapper">
+                        <IconSelect selected={action.icon} onChange={(value) => {
+                          const toolbarActions = state.toolbarActions;
+                          if (!toolbarActions) return;
+                          toolbarActions[index].icon = value;
+                          onOptionsChange({ ...state, toolbarActions });
+                        }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <div className="form-row">
+                    <label className="form-label">Prompt</label>
+                    <div className="form-control">
+                      <textarea
+                        placeholder="Rewrite and improve the following content:&#10;{{selection}}&#10;"
+                        value={action.prompt}
+                        onChange={(e) => {
+                          const toolbarActions = state.toolbarActions;
+                          if (!toolbarActions) return;
+                          toolbarActions[index].prompt = e.currentTarget.value;
+                          onOptionsChange({ ...state, toolbarActions });
+                        }}
+                      />
+                      <div className="variables-info">
+                        <strong>Available variables:</strong><br />
+                        <code>{'{{selection}}'}</code> Selected text &nbsp;|&nbsp;
+                        <code>{'{{before}}'}</code> Text before cursor &nbsp;|&nbsp;
+                        <code>{'{{after}}'}</code> Text after cursor
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <button className="add-action-btn" type="button" onClick={onAddAction}>
+              <Plus size={18} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '8px' }} />
+              Add New Custom Action
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed Footer */}
+      <footer className="options-footer">
+        <div className="options-footer-content">
+          <button type="submit" className="btn btn-primary">
+            <Save size={16} />
+            Save Changes
+          </button>
+          <button className="btn btn-secondary" type="button" onClick={onClose}>
+            <X size={16} />
+            Close
+          </button>
+          {!!message && <StatusBadge status={message} />}
+        </div>
+      </footer>
+    </form>
   );
 }
 
 const App = () => {
-  return (
-    <div>
-      <div class="pure-g">
-        <div class="pure-u-1-4">
-        </div>
-        <div class="pure-u-1-2">
-          <OptionsForm />
-        </div>
-      </div>
-    </div>
-  );
+  return <OptionsForm />;
 };
 
 render(<App />, document.body);

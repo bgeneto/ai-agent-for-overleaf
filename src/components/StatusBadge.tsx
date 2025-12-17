@@ -103,6 +103,14 @@ export const StatusBadge = ({ onComplete, onImprove, onFix, onAction, onSearch, 
                         </div>
                         <span class="copilot-status-menu-item-text">Find Similar Papers</span>
                     </div>
+
+                    <div class="copilot-status-menu-item" onClick={() => { setMenuOpen(false); onAction({ name: "Explain Error", icon: "lightbulb", prompt: "EXPLAIN_ERROR", onClick: "show_editor" }); }} title="Explain compilation error">
+                        <div class="copilot-status-menu-item-icon search">
+                            {/* Using lightbulb with amber color */}
+                            <div style={{ color: '#f59e0b' }}><Icon name="lightbulb" size={14} /></div>
+                        </div>
+                        <span class="copilot-status-menu-item-text">Explain Error</span>
+                    </div>
                     <div class="copilot-status-menu-divider" />
                     <div class="copilot-status-menu-item" onClick={handleSettings}>
                         <div class="copilot-status-menu-item-icon settings">
