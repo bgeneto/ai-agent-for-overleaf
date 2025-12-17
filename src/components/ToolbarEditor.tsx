@@ -10,7 +10,7 @@ import { postProcessToken } from '../utils/helper';
 
 interface ToolbarEditorProps {
   data: EditorSelectionData,
-  action: { name: string, prompt: string, icon: string },
+  action: { name: string, prompt: string, icon: string, onClick?: string },
   options: Options,
   signal: AbortSignal,
   onClose?: () => void

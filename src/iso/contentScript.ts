@@ -26,6 +26,13 @@ const DEFAULT_ACTION = {
   onClick: 'show_editor'
 };
 
+const FIX_ACTION = {
+  name: 'Fix LaTeX',
+  prompt: 'Fix the LaTeX syntax of the LaTeX code snippet shown below:\n{{selection}}\nDo not comment your fix, do not add any other info, or change the content, just fix the code. don\'t use code fences, use proper LaTeX syntax for math, tables, and other LaTeX environments',
+  icon: 'wrench',
+  onClick: 'show_editor'
+};
+
 // Re-render the badge when state changes
 function renderBadge() {
   const badgeContainer = document.getElementById('copilot-badge-container');
@@ -34,6 +41,7 @@ function renderBadge() {
       h(StatusBadge, {
         onComplete: handleComplete,
         onImprove: () => handleAction(DEFAULT_ACTION as any),
+        onFix: () => handleAction(FIX_ACTION as any),
         onAction: handleAction, // Generic handler for dynamic actions
         onSearch: handleSearch,
         hasSelection,
@@ -53,19 +61,26 @@ const COMPLETE_ACTION = {
   onClick: 'insert'
 };
 
+// Default prompt for completion if not set in options
+const DEFAULT_COMPLETION_PROMPT = `Continue {{before.endsWith('\n') ? '' : 'the last paragraph of '}}the academic paper in LaTeX below, making sure to maintain semantic continuity.
+
+### Beginning of the paper ###
+{{before[-1000:]}}
+### End of the paper ###`;
+
 // Handle "Complete at Cursor" action from menu
 function handleComplete() {
   if (!options || options.suggestionDisabled) return;
 
-  // Use the configured prompt
+  // Use the configured prompt or default
   const action = {
     ...COMPLETE_ACTION,
-    prompt: options.suggestionPrompt || ''
+    prompt: options.suggestionPrompt || DEFAULT_COMPLETION_PROMPT
   };
 
   // We need to trigger the completion flow which gathers context
-  // Wait, handleAction needs DATA (currentSelection). 
-  // If we just clicked menu, we might have currentSelection (onEditorSelect). 
+  // Wait, handleAction needs DATA (currentSelection).
+  // If we just clicked menu, we might have currentSelection (onEditorSelect).
   // `onEditorSelect` updates `currentSelection`.
   // If no selection, `currentSelection` might be null IF `onCursorUpdate` cleared it.
   // But for completion we often have NO selection (just cursor).
@@ -109,10 +124,10 @@ async function onCompleteRequest(
     head: event.detail.head
   };
 
-  // Use the configured prompt
+  // Use the configured prompt or default
   const action = {
     ...COMPLETE_ACTION,
-    prompt: options.suggestionPrompt || ''
+    prompt: options.suggestionPrompt || DEFAULT_COMPLETION_PROMPT
   };
 
   // Open the Toolbar Editor
@@ -159,6 +174,34 @@ function openToolbarEditor(action: any, data: any) {
 }
 
 
+// Handle generic action from menu
+function handleAction(action: { name: string, prompt: string, icon: string }) {
+  if (!currentSelection) return;
+
+  // Convert selection to editor data format
+  const data = {
+    content: currentSelection.content,
+    from: currentSelection.from,
+    to: currentSelection.to,
+    head: currentSelection.head
+  };
+
+  openToolbarEditor(action, data);
+}
+
+// Handle "Find Similar" action from menu
+function handleSearch() {
+  if (!currentSelection) return;
+
+  chrome.runtime.sendMessage({
+    type: 'load-more',
+    payload: { selection: currentSelection.content.selection }
+  });
+}
+
+// Track if the current completion was triggered by the menu
+// let isMenuTriggered = false; // logic removed
+
 let lastCursorHead: number | null = null;
 
 // Handle selection changes from main world (for tracking hasSelection state)
@@ -198,12 +241,6 @@ function onCursorUpdate(event: CustomEvent<{ hasSelection: boolean, head?: numbe
   // Don't abort if we just triggered a completion (avoid race condition)
   if (justTriggeredCompletion) {
     console.log('[Copilot Debug] Skipping abort - completion was just triggered');
-    return;
-  }
-
-  // If this is a menu-triggered completion (buffer mode), do not abort even if cursor moves
-  if (isMenuTriggered) {
-    console.log('[Copilot Debug] Skipping abort - menu triggered completion in progress');
     return;
   }
 

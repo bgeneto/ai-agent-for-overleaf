@@ -538,7 +538,7 @@ const OptionsForm = () => {
         </div>
       </form>
       <hr style="margin-top: 20px" />
-      <p>Overleaf Copilot. Version: {version}</p>
+      <p>Overleaf Copilot. Version: {version} by bgeneto.</p>
     </Fragment >
   );
 }

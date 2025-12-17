@@ -3,6 +3,7 @@
 import OpenAI, { APIUserAbortError } from 'openai';
 import {
   DEFAULT_MODEL,
+  DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN
 } from '../constants';
 import { postProcessToken, renderPrompt } from './helper';
 import { Options, TextContent, StreamChunk } from '../types';
@@ -27,6 +28,7 @@ export async function getImprovement(content: TextContent, prompt: string, optio
           },
         ],
         model: options.model || DEFAULT_MODEL,
+        max_tokens: options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN,
       }, { signal: signal });
       return response.choices[0].message.content ?? '';
     } catch (error) {
@@ -72,6 +74,7 @@ export async function* getImprovementStream(content: TextContent, prompt: string
           },
         ],
         model: options.model || DEFAULT_MODEL,
+        max_tokens: options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN,
         stream: true,
       }, { signal: signal });
 

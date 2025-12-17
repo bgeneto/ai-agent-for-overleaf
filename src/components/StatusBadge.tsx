@@ -1,5 +1,6 @@
+
 import { h } from 'preact';
-import { Bot, Sparkles, Pencil, Search, Settings, Loader } from 'lucide-preact';
+import { Bot, Sparkles, Pencil, Search, Settings, Loader, Wrench } from 'lucide-preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import './styles/StatusBadge.css';
 
@@ -9,6 +10,7 @@ import { ToolbarAction } from '../types';
 interface StatusBadgeProps {
     onComplete: () => void;
     onImprove: () => void;
+    onFix: () => void;
     onAction: (action: ToolbarAction) => void;
     onSearch: () => void;
     hasSelection: boolean;
@@ -16,7 +18,7 @@ interface StatusBadgeProps {
     actions: ToolbarAction[];
 }
 
-export const StatusBadge = ({ onComplete, onImprove, onAction, onSearch, hasSelection, isLoading, actions }: StatusBadgeProps) => {
+export const StatusBadge = ({ onComplete, onImprove, onFix, onAction, onSearch, hasSelection, isLoading, actions }: StatusBadgeProps) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -68,6 +70,13 @@ export const StatusBadge = ({ onComplete, onImprove, onAction, onSearch, hasSele
                             <Sparkles size={14} />
                         </div>
                         <span class="copilot-status-menu-item-text">Complete at Cursor</span>
+                    </div>
+
+                    <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={() => { if (hasSelection) { setMenuOpen(false); onFix(); } }} title={!hasSelection ? 'Select text first' : ''}>
+                        <div class="copilot-status-menu-item-icon improve">
+                            <Wrench size={14} />
+                        </div>
+                        <span class="copilot-status-menu-item-text">Fix LaTeX</span>
                     </div>
 
                     <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={handleImprove} title={!hasSelection ? 'Select text first' : ''}>
