@@ -33,9 +33,9 @@ const OptionsForm = () => {
 
     const optionsToSave = { ...state };
     if (optionsToSave.apiKey && !optionsToSave.apiKey.startsWith('sk-') && !optionsToSave.apiKey.startsWith('ey')) {
-      optionsToSave.apiKey = encryptApiKey(optionsToSave.apiKey);
+      optionsToSave.apiKey = await encryptApiKey(optionsToSave.apiKey);
     } else if (optionsToSave.apiKey) {
-      optionsToSave.apiKey = encryptApiKey(optionsToSave.apiKey);
+      optionsToSave.apiKey = await encryptApiKey(optionsToSave.apiKey);
     }
 
     // Validate Toolbar Actions
@@ -192,20 +192,23 @@ const OptionsForm = () => {
       origin = new URL(domain).origin;
     } catch {
       setMessage({ text: 'Invalid domain URL', type: 'error' });
-      return;
-    }
-
-    const granted = await (chrome as any).permissions.request({
-      origins: [origin + '/*']
-    });
-
-    if (!granted) {
-      setMessage({ text: 'Permission denied', type: 'error' });
-      setAddDomainStatus({ text: 'Permission denied', type: 'error' });
+      setAddDomainStatus(null);
       return;
     }
 
     try {
+      // Direct request to ensure user activation token isn't lost (Firefox requirement)
+      // If permission is already granted, this returns true immediately without prompt.
+      const granted = await (chrome as any).permissions.request({
+        origins: [origin + '/*']
+      });
+
+      if (!granted) {
+        setMessage({ text: 'Permission denied by user', type: 'error' });
+        setAddDomainStatus({ text: 'Denied', type: 'error' });
+        return;
+      }
+
       const idSuffix = origin.replace(/[^a-zA-Z0-9]/g, '-');
       await (chrome as any).scripting.registerContentScripts([
         {
@@ -234,12 +237,18 @@ const OptionsForm = () => {
       setAddDomainStatus({ text: 'Added!', type: 'success' });
       setMessage({ text: `Added domain: ${origin}`, type: 'success' });
     } catch (e) {
+      console.error(e);
       setAddDomainStatus({ text: 'Error', type: 'error' });
       if (e instanceof Error) {
         setMessage({ text: `Error: ${e.message}`, type: 'error' });
       } else {
-        setMessage({ text: 'Unknown error registering script', type: 'error' });
+        setMessage({ text: 'Unknown error', type: 'error' });
       }
+    } finally {
+      // Clear status after delay if it's stuck loading (though successful paths set their own status)
+      setTimeout(() => {
+        setAddDomainStatus(prev => (prev?.text === 'Adding...' ? null : prev));
+      }, 2000);
     }
   };
 

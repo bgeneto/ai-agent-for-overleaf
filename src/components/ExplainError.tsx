@@ -3,6 +3,7 @@ import { useEffect, useState } from "preact/hooks";
 import { X } from "lucide-preact";
 import { getImprovementStream } from "../utils/improvement";
 import { marked } from "marked";
+import DOMPurify from 'dompurify';
 import { Options } from "../types";
 
 export interface ExplainErrorProps {
@@ -76,7 +77,7 @@ export const ExplainError = ({ errorCtx, options, onClose }: ExplainErrorProps) 
                             lineHeight: '1.5',
                             fontSize: '14px'
                         }}
-                        dangerouslySetInnerHTML={{ __html: marked.parse(content) as string }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(content) as string) }}
                     />
                 )}
             </div>

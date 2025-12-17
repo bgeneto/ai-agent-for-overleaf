@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "AI Agent for Overleaf",
-    "version": "0.1.15",
+    "version": "0.1.16",
     "description": "AI-powered assistant for Overleaf LaTeX editor",
     "browser_specific_settings": {
         "gecko": {
@@ -42,8 +42,14 @@
         "scripting"
     ],
     "host_permissions": [
+        "*://*.overleaf.com/*"
+    ],
+    "optional_host_permissions": [
         "<all_urls>"
     ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https:;"
+    },
     "content_scripts": [
         {
             "world": "MAIN",

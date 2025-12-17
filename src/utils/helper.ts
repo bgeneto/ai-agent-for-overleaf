@@ -3,7 +3,18 @@ import { Options, TextContent } from "../types";
 import AES from 'crypto-js/aes';
 import encUtf8 from 'crypto-js/enc-utf8';
 
-const SECRET_PHRASE = "ai-agent-for-overleaf-secret-phrase-v1"; // Simple obfuscation key
+// Obfuscation key management
+async function getObfuscationKey(): Promise<string> {
+  const result = await chrome.storage.local.get('__copilot_machine_id');
+  if (result.__copilot_machine_id) {
+    return result.__copilot_machine_id;
+  }
+
+  // Generate new unique ID
+  const newId = globalThis.crypto.randomUUID();
+  await chrome.storage.local.set({ '__copilot_machine_id': newId });
+  return newId;
+}
 
 const Prefixes = ["```latex\n", "```latex", "```"];
 const Suffixes = ["\n```", "```"];
@@ -38,7 +49,8 @@ export async function getOptions() {
         // Legacy plaintext key, don't decrypt.
         // We will encrypt it on next save.
       } else {
-        const bytes = AES.decrypt(options.apiKey, SECRET_PHRASE);
+        const secret = await getObfuscationKey();
+        const bytes = AES.decrypt(options.apiKey, secret);
         const decrypted = bytes.toString(encUtf8);
         if (decrypted) {
           options.apiKey = decrypted;
@@ -72,9 +84,10 @@ export async function getOptions() {
   return options;
 }
 
-export function encryptApiKey(apiKey: string): string {
+export async function encryptApiKey(apiKey: string): Promise<string> {
   if (!apiKey) return '';
-  return AES.encrypt(apiKey, SECRET_PHRASE).toString();
+  const secret = await getObfuscationKey();
+  return AES.encrypt(apiKey, secret).toString();
 }
 
 export function getQueryParams() {
