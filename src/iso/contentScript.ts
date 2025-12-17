@@ -25,7 +25,7 @@ function renderBadge() {
   if (badgeContainer) {
     render(
       h(StatusBadge, {
-        onComplete: handleComplete,
+        onContinue: handleContinue,
         onImprove: () => handleAction(BUILTIN_ACTIONS.IMPROVE),
         onFix: () => handleAction(BUILTIN_ACTIONS.FIX),
         onAction: handleAction, // Generic handler for dynamic actions
@@ -39,8 +39,8 @@ function renderBadge() {
   }
 }
 
-// Handle "Complete at Cursor" action from menu
-function handleComplete() {
+// Handle "Continue Writing" action from menu
+function handleContinue() {
   if (!options || options.suggestionDisabled) return;
 
   // Focus editor
@@ -48,10 +48,10 @@ function handleComplete() {
   if (editor) editor.focus();
 
   // If user has text selected, use the existing selection data directly
-  // This ensures the selection is passed to buildCompletionPrompt correctly
+  // This ensures the selection is passed to buildContinuationPrompt correctly
   if (currentSelection && currentSelection.content.selection.trim().length > 0) {
     const action = {
-      ...BUILTIN_ACTIONS.COMPLETE,
+      ...BUILTIN_ACTIONS.CONTINUE,
       prompt: options.suggestionPrompt || ''
     };
     openToolbarEditor(action, currentSelection);
@@ -59,11 +59,11 @@ function handleComplete() {
   }
 
   // No selection - dispatch request to main world to get cursor context (before/after)
-  window.dispatchEvent(new CustomEvent('copilot:menu:complete'));
+  window.dispatchEvent(new CustomEvent('copilot:menu:continue'));
 }
 
-// Handle completion request from main world (response with context)
-async function onCompleteRequest(
+// Handle continuation request from main world (response with context)
+async function onContinueRequest(
   event: CustomEvent<{
     content: TextContent;
     head: number;
@@ -79,9 +79,9 @@ async function onCompleteRequest(
     head: event.detail.head
   };
 
-  // Use the COMPLETE action - prompt will be built by buildCompletionPrompt based on context
+  // Use the CONTINUE action - prompt will be built by buildContinuationPrompt based on context
   const action = {
-    ...BUILTIN_ACTIONS.COMPLETE,
+    ...BUILTIN_ACTIONS.CONTINUE,
     prompt: options.suggestionPrompt || '' // Custom prompt if provided
   };
 
@@ -152,10 +152,26 @@ function handleAction(action: { name: string, prompt: string, icon: string }) {
 
 // Handle "Explain Error" action
 async function handleExplainError(action: { name: string, prompt: string, icon: string }) {
-  // Find the error element in the logs pane
-  // Selector provided by user: #panel-pdf > div > div.logs-pane > div > div:nth-child(2)
-  // User requested to use the first log entry specifically
-  const errorElement = document.querySelector('.logs-pane-content > .log-entry');
+  // Find all log entries in the logs pane
+  const logEntries = document.querySelectorAll('.logs-pane-content > .log-entry');
+  let errorElement: Element | null = null;
+
+  // Iterate to find the first relevant error, skipping the "No PDF" message
+  // which is an info message that shouldn't be treated as an error to explain
+  for (const entry of Array.from(logEntries)) {
+    const title = entry.querySelector('.log-entry-header-title')?.textContent || "";
+    // Robustly skip this specific Overleaf info message
+    if (title.includes('No PDF') && title.includes('Stop on first error')) {
+      continue;
+    }
+
+    // Skip "Raw logs" entry as it usually contains the full log even on success
+    if (title.trim().toLowerCase() === 'raw logs') {
+      continue;
+    }
+    errorElement = entry;
+    break;
+  }
 
   if (!errorElement) {
     alert("No active compilation error found in the logs pane.");
@@ -273,7 +289,7 @@ async function onOptionsUpdate() {
 }
 
 // Event listeners
-window.addEventListener('copilot:complete:response', onCompleteRequest as any as EventListener);
+window.addEventListener('copilot:continue:response', onContinueRequest as any as EventListener);
 window.addEventListener('copilot:editor:select', onEditorSelect as any as EventListener);
 window.addEventListener('copilot:cursor:update', onCursorUpdate as any as EventListener);
 chrome.storage.onChanged.addListener(onOptionsUpdate);

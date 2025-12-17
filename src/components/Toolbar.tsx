@@ -29,6 +29,8 @@ export const Toolbar = ({ data, actions, searchDisabled, onShowEditor, onClickSe
       if (signal.aborted) return;
       window.dispatchEvent(
         new CustomEvent('copilot:editor:replace', {
+          bubbles: true,
+          composed: true,
           detail: {
             content: content,
             from: data.from,

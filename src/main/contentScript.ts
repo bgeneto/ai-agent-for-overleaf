@@ -83,7 +83,7 @@ function triggerCompletion() {
   const head = state.selection.main.head;
 
   window.dispatchEvent(
-    new CustomEvent('copilot:complete:response', {
+    new CustomEvent('copilot:continue:response', {
       detail: {
         content: {
           selection: '',
@@ -96,8 +96,8 @@ function triggerCompletion() {
   );
 }
 
-// Handle "Complete at Cursor" request from menu (ISO world asks main world for cursor data)
-function onMenuComplete() {
+// Handle "Continue Writing" request from menu (ISO world asks main world for cursor data)
+function onMenuContinue() {
   triggerCompletion();
 }
 
@@ -152,7 +152,7 @@ function debouncedSelectionCheck() {
 
 // Event listeners
 window.addEventListener('copilot:editor:replace', onReplaceContent as EventListener);
-window.addEventListener('copilot:menu:complete', onMenuComplete);
+window.addEventListener('copilot:menu:continue', onMenuContinue);
 window.addEventListener('copilot:suggestion:accept', onAcceptSuggestion as EventListener);
 window.addEventListener('copilot:editor:insert', onInsertContent as EventListener);
 

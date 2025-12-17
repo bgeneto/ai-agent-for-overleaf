@@ -1,5 +1,5 @@
 'use strict';
-import OpenAI from 'openai';
+
 
 
 chrome.runtime.onMessage.addListener(function (request) {
@@ -17,7 +17,6 @@ chrome.runtime.onMessage.addListener(function (request) {
       chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
     }
   }
-}
 });
 
 
@@ -30,15 +29,62 @@ chrome.runtime.onConnect.addListener(function (port) {
       const { apiKey, apiBaseUrl, model, max_tokens, messages } = msg.payload;
 
       try {
-        // Manual fetch to avoid importing OpenAI library in background if possible?
-        // No, background.ts can have dependencies. But earlier I saw it didn't have imports.
-        // Let's check if I can import OpenAI in background.ts.
-        // It's a Typescript file, compiled by Webpack. Yes.
-        // But wait, if I add imports here, I need to ensure background.ts is processed correctly by webpack.
-        // Looking at webpack.config.js (implied), background entry exists.
+        const baseUrl = apiBaseUrl?.replace(/\/+$/, '') || 'https://api.openai.com/v1';
 
-        // Dynamic import or standard import? Standard import at top is better.
-        // I'll add imports at the top and the logic here.
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: messages,
+            max_tokens: max_tokens,
+            stream: true
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`API Error ${response.status}: ${errorText}`);
+        }
+
+        if (!response.body) {
+          throw new Error('No response body received');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed === '' || trimmed === 'data: [DONE]') continue;
+            if (trimmed.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(trimmed.slice(6));
+                const content = data.choices?.[0]?.delta?.content || '';
+                if (content) {
+                  port.postMessage({ kind: 'token', content });
+                }
+              } catch (e) {
+                console.error("Error parsing stream chunk", e);
+              }
+            }
+          }
+        }
+
+        // Signal done
+        port.postMessage({ kind: 'done' });
+        port.disconnect();
+
       } catch (err) {
         port.postMessage({ kind: 'error', content: String(err) });
         port.disconnect();

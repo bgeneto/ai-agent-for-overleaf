@@ -14,7 +14,7 @@ const EMBEDDING_WEIGHT = 0.7;
 const MIN_QUERY_LENGTH = 3;
 
 import { getOptions } from './helper';
-import OpenAI from 'openai';
+
 import { Options } from '../types';
 
 // In-memory embedding cache to avoid redundant API calls
@@ -48,9 +48,12 @@ function cosineSimilarity(vecA: number[], vecB: number[]) {
 
 // LLM-based query expansion: extract academic keywords for better arXiv search
 // FALLBACK: Returns original text if LLM call fails, times out, or returns invalid response
+// LLM-based query expansion: extract academic keywords for better arXiv search
+// FALLBACK: Returns original text if LLM call fails, times out, or returns invalid response
 async function expandQuery(
   text: string,
-  openai: OpenAI,
+  apiKey: string,
+  apiBaseUrl: string,
   model: string
 ): Promise<string> {
   // Always have original text as fallback
@@ -59,19 +62,31 @@ async function expandQuery(
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+    const baseUrl = apiBaseUrl.replace(/\/+$/, '') || 'https://api.openai.com/v1';
 
-    const response = await openai.chat.completions.create({
-      model,
-      max_tokens: 100,
-      messages: [{
-        role: 'user',
-        content: `Extract 5-7 academic search keywords from this text. Return only keywords separated by spaces, no explanation:\n\n${text.slice(0, 500)}`
-      }]
-    }, { signal: controller.signal });
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 100,
+        messages: [{
+          role: 'user',
+          content: `Extract 5-7 academic search keywords from this text. Return only keywords separated by spaces, no explanation:\n\n${text.slice(0, 500)}`
+        }]
+      }),
+      signal: controller.signal
+    });
 
     clearTimeout(timeoutId);
 
-    const expandedKeywords = response.choices[0]?.message?.content?.trim();
+    if (!response.ok) return fallback;
+
+    const data = await response.json();
+    const expandedKeywords = data.choices?.[0]?.message?.content?.trim();
 
     // Validate the response: must have content and at least 2 words
     if (!expandedKeywords || expandedKeywords.length < 3) {
@@ -95,7 +110,8 @@ async function expandQuery(
 async function getEmbedding(
   text: string,
   model: string,
-  openai: OpenAI
+  apiKey: string,
+  apiBaseUrl: string
 ): Promise<number[] | null> {
   const cacheKey = getCacheKey(model, text);
 
@@ -104,16 +120,31 @@ async function getEmbedding(
   }
 
   try {
-    const res = await openai.embeddings.create({
-      model,
-      input: text.slice(0, MAX_TEXT_LENGTH), // Chunk for optimal quality
+    const baseUrl = apiBaseUrl.replace(/\/+$/, '') || 'https://api.openai.com/v1';
+
+    const response = await fetch(`${baseUrl}/embeddings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        input: text.slice(0, MAX_TEXT_LENGTH), // Chunk for optimal quality
+      })
     });
-    const embedding = res.data[0].embedding;
 
-    embeddingCache.set(cacheKey, embedding);
-    trimCache();
+    if (!response.ok) return null;
 
-    return embedding;
+    const data = await response.json();
+    const embedding = data.data?.[0]?.embedding;
+
+    if (embedding) {
+      embeddingCache.set(cacheKey, embedding);
+      trimCache();
+      return embedding;
+    }
+    return null;
   } catch (e) {
     return null;
   }
@@ -132,18 +163,16 @@ export async function search(query: string, page: number) {
   }
 
   // Initialize OpenAI client (needed for query expansion and embeddings)
-  const openai = new OpenAI({
-    apiKey: options.apiKey,
-    baseURL: options.apiBaseUrl,
-    dangerouslyAllowBrowser: true
-  });
+  // const openai = new OpenAI({ ... }); // REMOVED
 
   // 1. LLM Query Expansion (if model available)
   // FALLBACK: If expansion fails or no model, uses original query
   let searchTerms = trimmedQuery;
+  const apiBaseUrl = options.apiBaseUrl || 'https://api.openai.com/v1';
+
   if (options.model) {
     try {
-      searchTerms = await expandQuery(trimmedQuery, openai, options.model);
+      searchTerms = await expandQuery(trimmedQuery, options.apiKey, apiBaseUrl, options.model);
       // Double-check we got something useful, otherwise use original
       if (!searchTerms || searchTerms.length < MIN_QUERY_LENGTH) {
         searchTerms = trimmedQuery; // FALLBACK: Expansion returned nothing useful
@@ -207,13 +236,14 @@ export async function search(query: string, page: number) {
       const queryVec = await getEmbedding(
         QUERY_PREFIX + trimmedQuery,
         options.embeddingModel,
-        openai
+        options.apiKey,
+        apiBaseUrl
       );
 
       if (queryVec) {
         // Embed candidates (with chunking and caching)
         const candidateVecs = await Promise.all(
-          candidates.map(c => getEmbedding(c.text, options.embeddingModel!, openai))
+          candidates.map(c => getEmbedding(c.text, options.embeddingModel!, options.apiKey!, apiBaseUrl))
         );
 
         // Calculate hybrid scores

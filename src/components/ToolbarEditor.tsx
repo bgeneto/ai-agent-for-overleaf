@@ -11,7 +11,7 @@ import { postProcessToken } from '../utils/helper';
 
 interface ToolbarEditorProps {
   data: EditorSelectionData,
-  action: { name: string, prompt: string, icon: string, onClick?: string, isCompletion?: boolean },
+  action: { name: string, prompt: string, icon: string, onClick?: string, isContinuation?: boolean },
   options: Options,
   signal: AbortSignal,
   onClose?: () => void
@@ -77,9 +77,9 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
     setContent("");
     setLoading(true);
     try {
-      // Use getSuggestion for completion actions (uses buildCompletionPrompt)
+      // Use getSuggestion for continuation actions (uses buildContinuationPrompt)
       // Use getImprovementStream for regular improvement actions (uses buildImprovePrompt)
-      const stream = action.isCompletion
+      const stream = action.isContinuation
         ? getSuggestion(data.content, signal, options)
         : getImprovementStream(data.content, action.prompt, options, signal);
 
@@ -104,6 +104,8 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
 
     window.dispatchEvent(
       new CustomEvent('copilot:editor:replace', {
+        bubbles: true,
+        composed: true,
         detail: {
           content: cleanContent,
           from: data.from,
@@ -121,15 +123,17 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
     // Clean content before inserting
     const cleanContent = postProcessToken(content);
 
-    // For completion actions: if there was selected text used as context,
+    // For continuation actions: if there was selected text used as context,
     // we need to prepend it to the generated content and replace the selection.
     // This preserves the context while adding the continuation.
     const hasSelection = data.content.selection && data.content.selection.trim().length > 0;
 
-    if (action.isCompletion && hasSelection) {
+    if (action.isContinuation && hasSelection) {
       // Replace selection with: original selection + generated continuation
       window.dispatchEvent(
         new CustomEvent('copilot:editor:replace', {
+          bubbles: true,
+          composed: true,
           detail: {
             content: data.content.selection + cleanContent,
             from: data.from,
@@ -138,9 +142,11 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
         })
       );
     } else {
-      // No selection or not a completion action: just insert at cursor position
+      // No selection or not a continuation action: just insert at cursor position
       window.dispatchEvent(
         new CustomEvent('copilot:editor:insert', {
+          bubbles: true,
+          composed: true,
           detail: {
             content: cleanContent,
             pos: data.head ?? data.to // Insert at cursor (head) or end of selection (to)
@@ -188,7 +194,7 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
           <span><Icon name="rotate-ccw" size={14} /></span>
           <span>Regenerate</span>
         </div>
-        {(action.onClick === 'insert' || action.isCompletion) ? (
+        {(action.onClick === 'insert' || action.isContinuation) ? (
           <div className={loading ? "disabled toolbar-editor-action" : "toolbar-editor-action"} onClick={onInsert}>
             <span><Icon name="arrow-right" size={14} /></span>
             <span>Insert</span>

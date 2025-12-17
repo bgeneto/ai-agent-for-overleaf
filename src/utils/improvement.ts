@@ -1,6 +1,6 @@
 'use strict';
 
-import OpenAI, { APIUserAbortError } from 'openai';
+
 import {
   DEFAULT_MODEL,
   DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN
@@ -10,34 +10,16 @@ import { Options, TextContent, StreamChunk } from '../types';
 
 
 export async function getImprovement(content: TextContent, prompt: string, options: Options, signal: AbortSignal) {
-  if (!options.apiKey) {
-    return "Please set your OpenAI API key in the extension options.";
-  } else {
-    const openai = new OpenAI({
-      apiKey: options.apiKey,
-      baseURL: options.apiBaseUrl,
-      dangerouslyAllowBrowser: true,
-    });
-
-    try {
-      const response = await openai.chat.completions.create({
-        messages: [
-          {
-            role: 'user',
-            content: buildImprovePrompt(content, prompt),
-          },
-        ],
-        model: options.model || DEFAULT_MODEL,
-        max_tokens: options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN,
-      }, { signal: signal });
-      return response.choices[0].message.content ?? '';
-    } catch (error) {
-      if (error instanceof APIUserAbortError) {
-        return "The request was aborted.";
-      }
-      return "An error occurred while generating the content.\n" + error;
+  let fullContent = "";
+  const stream = getImprovementStream(content, prompt, options, signal);
+  for await (const chunk of stream) {
+    if (chunk.kind === 'token') {
+      fullContent += chunk.content;
+    } else if (chunk.kind === 'error') {
+      return chunk.content;
     }
   }
+  return fullContent;
 }
 
 export async function* getImprovementStream(content: TextContent, prompt: string, options: Options, signal: AbortSignal):
@@ -49,39 +31,73 @@ export async function* getImprovementStream(content: TextContent, prompt: string
       content: "Please set your OpenAI API key in the extension options."
     };
     return;
-  } else {
+  }
 
-    const openai = new OpenAI({
-      apiKey: options.apiKey,
-      baseURL: options.apiBaseUrl,
-      dangerouslyAllowBrowser: true,
-    });
+  const promptContent = buildImprovePrompt(content, prompt);
 
-    try {
-      const promptContent = buildImprovePrompt(content, prompt);
+  // Connect to background script
+  const port = chrome.runtime.connect({ name: 'openai-stream' });
 
-      const stream = await openai.chat.completions.create({
-        messages: [
-          {
-            role: 'user',
-            content: promptContent,
-          },
-        ],
-        model: options.model || DEFAULT_MODEL,
-        max_tokens: options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN,
-        stream: true,
-      }, { signal: signal });
+  // Promisify the stream for generator usage
+  // We need to queue incoming messages and yield them
+  const queue: any[] = [];
+  let resolveNext: ((value?: any) => void) | null = null;
+  let isDone = false;
+  let error: any = null;
 
-      for await (const chunk of stream) {
-        const tokenContent = chunk.choices[0]?.delta?.content || '';
-        yield { kind: "token", content: tokenContent };
-      }
-
-    } catch (error) {
-      if (error instanceof APIUserAbortError) {
-        return;
-      }
-      yield { kind: "error", content: "An error occurred while generating the content.\n" + error };
+  port.onMessage.addListener((msg) => {
+    queue.push(msg);
+    if (resolveNext) {
+      resolveNext();
+      resolveNext = null;
     }
+  });
+
+  port.onDisconnect.addListener(() => {
+    isDone = true;
+    if (resolveNext) resolveNext();
+  });
+
+  // Handle user abort
+  if (signal) {
+    signal.addEventListener('abort', () => {
+      port.disconnect();
+      isDone = true;
+      if (resolveNext) resolveNext();
+    });
+  }
+
+  // Send start message
+  port.postMessage({
+    type: 'start-stream',
+    payload: {
+      apiKey: options.apiKey,
+      apiBaseUrl: options.apiBaseUrl,
+      model: options.model || DEFAULT_MODEL,
+      max_tokens: options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN,
+      messages: [{ role: 'user', content: promptContent }]
+    }
+  });
+
+  try {
+    while (true) {
+      if (queue.length > 0) {
+        const msg = queue.shift();
+        if (msg.kind === 'token') {
+          yield { kind: 'token', content: msg.content };
+        } else if (msg.kind === 'error') {
+          yield { kind: 'error', content: msg.content };
+          return;
+        } else if (msg.kind === 'done') {
+          return;
+        }
+      } else {
+        if (isDone) return;
+        // Wait for next message
+        await new Promise<void>((resolve) => { resolveNext = resolve; });
+      }
+    }
+  } finally {
+    port.disconnect();
   }
 }

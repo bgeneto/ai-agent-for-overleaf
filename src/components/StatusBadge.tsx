@@ -8,7 +8,7 @@ import { Icon } from "./Icon";
 import { ToolbarAction } from '../types';
 
 interface StatusBadgeProps {
-    onComplete: () => void;
+    onContinue: () => void;
     onImprove: () => void;
     onFix: () => void;
     onAction: (action: ToolbarAction) => void;
@@ -18,7 +18,7 @@ interface StatusBadgeProps {
     actions: ToolbarAction[];
 }
 
-export const StatusBadge = ({ onComplete, onImprove, onFix, onAction, onSearch, hasSelection, isLoading, actions }: StatusBadgeProps) => {
+export const StatusBadge = ({ onContinue, onImprove, onFix, onAction, onSearch, hasSelection, isLoading, actions }: StatusBadgeProps) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -33,9 +33,9 @@ export const StatusBadge = ({ onComplete, onImprove, onFix, onAction, onSearch, 
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleComplete = () => {
+    const handleContinue = () => {
         setMenuOpen(false);
-        onComplete();
+        onContinue();
     };
 
     const handleImprove = () => {
@@ -65,11 +65,26 @@ export const StatusBadge = ({ onComplete, onImprove, onFix, onAction, onSearch, 
         <div class="copilot-status-badge" ref={ref}>
             {menuOpen && (
                 <div class="copilot-status-menu">
-                    <div class="copilot-status-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={handleComplete}>
+                    <div class="copilot-status-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={handleContinue}>
                         <div class="copilot-status-menu-item-icon complete">
                             <Sparkles size={14} />
                         </div>
-                        <span class="copilot-status-menu-item-text">Complete at Cursor</span>
+                        <span class="copilot-status-menu-item-text">Continue Writing</span>
+                    </div>
+
+                    <div class="copilot-status-menu-item" onClick={() => { setMenuOpen(false); onAction({ name: "Explain Error", icon: "lightbulb", prompt: "EXPLAIN_ERROR", onClick: "show_editor" }); }} title="Explain compilation error">
+                        <div class="copilot-status-menu-item-icon search">
+                            {/* Using lightbulb with amber color */}
+                            <div style={{ color: '#f59e0b' }}><Icon name="lightbulb" size={14} /></div>
+                        </div>
+                        <span class="copilot-status-menu-item-text">Explain Error</span>
+                    </div>
+
+                    <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={handleSearch} title={!hasSelection ? 'Select text first' : ''}>
+                        <div class="copilot-status-menu-item-icon search">
+                            <Search size={14} />
+                        </div>
+                        <span class="copilot-status-menu-item-text">Find Similar Papers</span>
                     </div>
 
                     <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={() => { if (hasSelection) { setMenuOpen(false); onFix(); } }} title={!hasSelection ? 'Select text first' : ''}>
@@ -96,21 +111,6 @@ export const StatusBadge = ({ onComplete, onImprove, onFix, onAction, onSearch, 
                             <span class="copilot-status-menu-item-text">{action.name || "Action"}</span>
                         </div>
                     ))}
-
-                    <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={handleSearch} title={!hasSelection ? 'Select text first' : ''}>
-                        <div class="copilot-status-menu-item-icon search">
-                            <Search size={14} />
-                        </div>
-                        <span class="copilot-status-menu-item-text">Find Similar Papers</span>
-                    </div>
-
-                    <div class="copilot-status-menu-item" onClick={() => { setMenuOpen(false); onAction({ name: "Explain Error", icon: "lightbulb", prompt: "EXPLAIN_ERROR", onClick: "show_editor" }); }} title="Explain compilation error">
-                        <div class="copilot-status-menu-item-icon search">
-                            {/* Using lightbulb with amber color */}
-                            <div style={{ color: '#f59e0b' }}><Icon name="lightbulb" size={14} /></div>
-                        </div>
-                        <span class="copilot-status-menu-item-text">Explain Error</span>
-                    </div>
                     <div class="copilot-status-menu-divider" />
                     <div class="copilot-status-menu-item" onClick={handleSettings}>
                         <div class="copilot-status-menu-item-icon settings">

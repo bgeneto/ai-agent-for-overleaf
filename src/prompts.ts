@@ -9,10 +9,10 @@ import { renderPrompt } from './utils/helper';
  */
 export const PROMPTS = {
     /**
-     * Prompt for "Complete at Cursor" feature.
+     * Prompt for "Continue Writing" feature.
      * Used when the user wants the LLM to continue writing from the current position.
      */
-    COMPLETION: `You are a LaTeX academic writing companion and content continuation expert. Continue writing from where the text below ends, maintaining the same topic, argument flow, writing style, tone, and language. Output ONLY the continuation text with proper LaTeX syntax and zero commentary.
+    CONTINUATION: `You are a LaTeX academic writing companion and content continuation expert. Continue writing from where the text below ends, maintaining the same topic, argument flow, writing style, tone, and language. Output ONLY the continuation text with proper LaTeX syntax and zero commentary.
 
 ### Text to be continued ###
 {{contextContent}}
@@ -159,25 +159,25 @@ export const BUILTIN_ACTIONS = {
     } as ToolbarAction,
 
     /**
-     * Action for completing text at cursor position.
+     * Action for continuing writing from cursor or selection.
      */
-    COMPLETE: {
-        name: 'Complete at Cursor',
+    CONTINUE: {
+        name: 'Continue Writing',
         prompt: '', // Will be built dynamically based on context
         icon: 'sparkles',
         onClick: 'show_editor',
-        isCompletion: true  // Use buildCompletionPrompt instead of buildImprovePrompt
+        isContinuation: true  // Use buildContinuationPrompt instead of buildImprovePrompt
     } as ToolbarAction
 } as const;
 
 /**
- * Builds the completion prompt based on the current text content.
+ * Builds the continuation prompt based on the current text content.
  * 
  * @param content - The text content containing before, after, and selection
  * @param customTemplate - Optional custom template provided by user settings
  * @returns The formatted prompt string ready to send to the LLM
  */
-export function buildCompletionPrompt(content: TextContent, customTemplate?: string): string {
+export function buildContinuationPrompt(content: TextContent, customTemplate?: string): string {
     // Check if there's selected text - if so, continue from the selection directly
     const hasSelection = content.selection && content.selection.trim().length > 0;
 
@@ -196,7 +196,7 @@ export function buildCompletionPrompt(content: TextContent, customTemplate?: str
     const contextContent = hasSelection ? content.selection : content.before.slice(-1000);
 
     // Build the prompt by replacing placeholder
-    return PROMPTS.COMPLETION
+    return PROMPTS.CONTINUATION
         .replace(/\{\{contextContent\}\}/g, contextContent);
 }
 
