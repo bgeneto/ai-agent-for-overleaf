@@ -5,22 +5,24 @@
 [![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange)](https://addons.mozilla.org/firefox/addon/ai-agent-for-overleaf/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**AI-powered code completion and text enhancement for the [Overleaf](https://www.overleaf.com) LaTeX editor.**
+**AI-powered writing assistant for the [Overleaf](https://www.overleaf.com) LaTeX editor.**
 
-Transform your academic writing experience with intelligent LaTeX suggestions, text improvements, and research discovery—all powered by OpenAI's GPT models or any compatible API provider.
+Transform your academic writing with intelligent completion, text enhancement, error explanation, and research discovery—powered by OpenAI-compatible APIs.
 
 ---
 
 ## ✨ Features
 
-### 🤖 Auto-Completion
-Get real-time, context-aware LaTeX suggestions as you write. The AI understands your document structure and continues your content with semantic continuity.
-
-### ✏️ Text Enhancement
-Select any text and instantly improve it with AI-powered rewriting, grammar fixing, or style adjustments using the floating toolbar.
-
-### 🔍 Find Similar Papers
-Discover related research on arXiv based on your selected text. Great for literature reviews and finding citations.
+| Feature | Description |
+|---------|-------------|
+| **Continue Writing** | AI continues your document from cursor position or selected text |
+| **Improve Writing** | Enhance grammar, fluency, and academic style while preserving LaTeX |
+| **Fix LaTeX** | Automatically fix LaTeX syntax and compilation errors |
+| **Explain Error** | Get plain-language explanations of LaTeX compilation errors |
+| **Custom Task** | Enter any instruction for the AI to execute on your content |
+| **Custom Actions** | Create reusable toolbar actions with your own prompts |
+| **Find Similar Papers** | Discover related research on arXiv |
+| **Custom Domains** | Support for self-hosted Overleaf instances |
 
 ---
 
@@ -30,327 +32,152 @@ Discover related research on arXiv based on your selected text. Great for litera
 
 | Browser | Link |
 |---------|------|
-| **Google Chrome** | [Chrome Web Store](https://chrome.google.com/webstore/detail/ai-agent-for-overleaf/pcmffklbilmgckfkbncpoffmicdpfkmm) |
-| **Microsoft Edge** | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ai-agent-for-overleaf/dgbgphmgphkibogcjhjhdmkjphejcead) |
-| **Mozilla Firefox** | [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/ai-agent-for-overleaf/) *(requires Firefox 128+)* |
+| **Chrome** | [Chrome Web Store](https://chrome.google.com/webstore/detail/ai-agent-for-overleaf/pcmffklbilmgckfkbncpoffmicdpfkmm) |
+| **Edge** | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ai-agent-for-overleaf/dgbgphmgphkibogcjhjhdmkjphejcead) |
+| **Firefox** | [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/ai-agent-for-overleaf/) *(128+)* |
 
-### Manual Installation (Development)
+### Manual Installation
 
-1. Clone or download this repository
-2. Run `npm install` to install dependencies
-3. Run `npm run build` to create the production build
-4. Open `chrome://extensions/` (or `edge://extensions/`)
-5. Enable **Developer mode**
-6. Click **Load unpacked** and select the `build/` folder
+```bash
+git clone https://github.com/bgeneto/ai-agent-for-overleaf.git
+cd ai-agent-for-overleaf
+npm install
+npm run build
+```
+
+Then load the `build/` folder as an unpacked extension in your browser.
 
 ---
 
 ## ⚙️ Setup
 
-After installing the extension:
+1. **Open Options** — Click the extension icon → Options
+2. **Enter API Key** — From [OpenAI](https://platform.openai.com/api-keys) or any compatible provider
+3. **Test Connection** — Verify your key and fetch available models
+4. **Start Writing** — Open any Overleaf project
 
-1. **Open Options**: Click the extension icon in your browser toolbar, then click **Options** (or right-click the icon → Options)
+### Configuration
 
-2. **Enter your API Key**: 
-   - Get an API key from [OpenAI](https://platform.openai.com/api-keys)
-   - Or use any OpenAI-compatible provider (Azure, Anthropic, local models, etc.)
-
-3. **Configure Settings** (optional):
-   | Setting | Default | Description |
-   |---------|---------|-------------|
-   | API Base URL | `https://api.openai.com/v1` | Change for custom providers |
-   | Model | `gpt-3.5-turbo` | GPT model to use |
-   | Max Output Tokens | `1024` | Maximum length of suggestions |
-   | Custom Prompt | (built-in) | Your own prompt template |
-
-4. **Test Connection**: Click "Test Connection" to verify your API key works
+| Setting | Default | Description |
+|---------|---------|-------------|
+| API Key | — | Your OpenAI-compatible API key (required) |
+| Base URL | `https://api.openai.com/v1` | Custom endpoint for alternative providers |
+| Chat Model | `gpt-4o-mini` | Model for text generation |
+| Embedding Model | `text-embedding-3-small` | Model for "Find Similar Papers" |
+| Max Tokens | `1024` | Maximum response length |
+| Keyboard Shortcut | `Ctrl+Shift+C` | Trigger "Continue Writing" |
 
 ---
 
-## 📖 Usage Guide
+## 📖 Usage
 
-### Auto-Completion
+### Status Badge Menu
 
-The extension automatically provides inline suggestions as you write LaTeX:
+A floating badge appears in Overleaf with quick access to all features:
 
-#### When Suggestions Appear
+| Action | Description |
+|--------|-------------|
+| **Continue Writing** | AI continues from cursor/selection |
+| **Custom Task** | Enter any instruction |
+| **Improve** | Enhance selected text |
+| **Fix LaTeX** | Fix syntax errors in selection |
+| **Find Similar** | Search arXiv for related papers |
+| **Explain Error** | Explain the current compilation error |
 
-| Condition | Requirement |
-|-----------|-------------|
-| **Trigger position** | After typing a space at the end of a line, OR on a new/empty line |
-| **Minimum content** | At least 50 characters of content before cursor |
-| **Delay** | Suggestions appear after ~800ms of inactivity (to avoid interrupting typing) |
-| **Excluded lines** | Lines starting with `%` (LaTeX comments) are ignored |
+### Floating Toolbar
 
-#### Keyboard Shortcuts
+Select text to reveal a floating toolbar with **Improve**, **Fix**, and **Search** actions.
+
+### Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Tab` | **Accept** the entire suggestion |
-| `Ctrl + →` (Windows/Linux) | Accept **one word** at a time |
-| `Cmd + →` (macOS) | Accept **one word** at a time |
-| `Escape` or click elsewhere | **Dismiss** the suggestion |
-
-#### Visual Indicators
-
-| Indicator | Meaning |
-|-----------|---------|
-| `...` (animated/flashing) | AI is generating a suggestion |
-| Grey overlay text | Suggestion is ready—press Tab to accept |
-| Red text | An error occurred (check console for details) |
+| `Tab` | Accept inline suggestion |
+| `Ctrl+→` / `Cmd+→` | Accept one word |
+| `Escape` | Dismiss suggestion |
+| `Ctrl+Shift+C` | Continue Writing (configurable) |
 
 ---
 
-### Text Enhancement Toolbar
+## 🎨 Custom Toolbar Actions
 
-When you **select text** in the Overleaf editor, a floating toolbar appears:
+Create reusable AI actions in Options → **Custom Toolbar Actions**:
 
-1. **Edit Icon** (✏️): Opens an inline editor to rewrite or improve the selected text with AI assistance
-2. **Search Icon** (🔍): Find similar papers on arXiv based on the selected content
+1. **Name** — Display label (e.g., "Translate to Portuguese")
+2. **Icon** — Visual indicator
+3. **Prompt** — Your instruction with placeholders
 
-The toolbar actions use your configured API key and model.
+### Available Placeholders
 
----
+| Placeholder | Description |
+|-------------|-------------|
+| `{{selection}}` | Selected text |
+| `{{before}}` | Text before cursor |
+| `{{after}}` | Text after cursor |
 
-### Find Similar Papers
+**Example:** `Translate to pt-BR: {{selection}}`
 
-Discover related research based on your document content:
-
-1. Select relevant text (abstract, paragraph, or keywords)
-2. Click the **search icon** in the toolbar
-3. View matching papers from arXiv with titles, authors, and abstracts
-4. Click any result to open the paper
-
----
-
-## 🔧 Configuration Reference
-
-### Options Page Settings
-
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `API Key` | string | — | Your OpenAI API key (required) |
-| `API Base URL` | string | `https://api.openai.com/v1` | Base URL for API requests |
-| `Model` | string | `gpt-3.5-turbo` | Model ID to use for completions |
-| `Max Output Tokens` | number | `1024` | Maximum tokens in AI response |
-| `Suggestion Prompt` | string | (built-in) | Custom prompt template |
-| `Disable Suggestions` | boolean | `false` | Turn off auto-completion |
-| `Disable Toolbar` | boolean | `false` | Turn off selection toolbar |
-| `Disable Search` | boolean | `false` | Turn off arXiv search in toolbar |
-
-### Custom Prompt Templates
-
-You can define your own suggestion prompt using these placeholders:
-
-| Placeholder | Description | Example |
-|-------------|-------------|---------|
-| `{{before}}` | All text before the cursor | Full document up to cursor |
-| `{{after}}` | All text after the cursor | Rest of document |
-| `{{selection}}` | Currently selected text | (For toolbar actions) |
-| `{{before[-1000:]}}` | Last 1000 characters before cursor | Slice syntax |
-| `{{after[:500]}}` | First 500 characters after cursor | Slice syntax |
-
-**Example custom prompt:**
-```
-You are a LaTeX expert. Continue the following academic paper naturally:
-
-{{before[-2000:]}}
-
-Provide only the LaTeX code continuation, no explanations.
-```
+Custom actions automatically receive LaTeX-aware context for optimal results.
 
 ---
 
-## 🔒 Privacy & Security
-
-This extension prioritizes your privacy:
+## 🔒 Privacy
 
 | Aspect | Details |
 |--------|---------|
-| **Data Collection** | None. We do not collect, store, or transmit any user data. |
-| **API Communication** | Direct browser-to-API communication only. No intermediary servers. |
-| **API Key Storage** | Stored locally in `chrome.storage.local`, encrypted (obfuscated) with AES. |
-| **Analytics** | None. No tracking, no cookies, no telemetry. |
-| **Fallback Services** | None. The extension only works with your configured API. |
+| **Data Collection** | None |
+| **API Communication** | Direct browser-to-API only |
+| **Key Storage** | Local, AES-encrypted |
+| **Analytics** | None |
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Suggestions Not Appearing
-
-1. **Check API Key**: Ensure your API key is correctly entered in Options
-2. **Test Connection**: Use the "Test Connection" button in Options
-3. **Check Content Length**: You need at least 50 characters before the cursor
-4. **Check Position**: Cursor must be at end of line (after space) or on empty line
-5. **Check Console**: Open DevTools (F12) → Console for error messages
-
-### Too Many API Requests
-
-The extension has built-in throttling (800ms debounce), but if you notice excessive requests:
-1. Ensure you're using the latest version
-2. Reload the extension in `chrome://extensions/`
-3. Refresh the Overleaf page
-
-### Suggestion Disappears Before I Can Accept
-
-- Wait for the grey text to appear (indicates completion)
-- Avoid typing while the `...` animation is showing
-- Press Tab immediately when you see the suggestion
-
-### "API Key Required" Error
-
-The extension no longer supports fallback services. You must provide your own OpenAI API key or use a compatible provider.
-
----
-
-## ❓ FAQ
-
-<details>
-<summary><strong>Does this work with GPT-4?</strong></summary>
-
-Yes! Select `gpt-4`, `gpt-4-turbo`, or `gpt-4o` from the model dropdown in Options. Note that GPT-4 models are more expensive and may have different rate limits.
-</details>
-
-<details>
-<summary><strong>Can I use a local LLM or self-hosted model?</strong></summary>
-
-Yes, if your local model exposes an OpenAI-compatible API (like Ollama, LM Studio, or vLLM). Set the **API Base URL** to your local endpoint (e.g., `http://localhost:11434/v1`).
-</details>
-
-<details>
-<summary><strong>Why does it need my API key?</strong></summary>
-
-The extension communicates directly with OpenAI's API (or your configured provider). Your key never leaves your browser except to authenticate with the API.
-</details>
-
-<details>
-<summary><strong>Does it work on ShareLaTeX or other LaTeX editors?</strong></summary>
-
-Currently, it's designed specifically for Overleaf's CodeMirror 6 editor. Other editors may work but are not officially supported.
-</details>
-
-<details>
-<summary><strong>How do I reduce API costs?</strong></summary>
-
-- Use `gpt-3.5-turbo` instead of GPT-4 (much cheaper)
-- Reduce **Max Output Tokens** to limit response length
-- Disable suggestions when not needed
-</details>
+| Issue | Solution |
+|-------|----------|
+| No suggestions | Check API key, test connection, ensure 50+ chars before cursor |
+| Wrong model | Click "Test Connection" to refresh model list |
+| Firefox issues | Requires Firefox 128+ |
+| Custom domain fails | Check permissions, ensure HTTPS |
 
 ---
 
 ## 🛠️ Development
 
-### Prerequisites
-
-- Node.js 18+
-- npm 9+
-
-### Commands
-
 ```bash
-# Install dependencies
-npm install
-
-# Development build (with watch mode)
-npm run watch
-
-# Production build
-npm run build
-
-# Create release packages
-npm run pack:chrome    # Creates .zip for Chrome/Edge
-npm run pack:firefox   # Creates .xpi for Firefox
-npm run pack:all       # Creates both packages
-
-# Build + pack combined
-npm run repack         # Build + pack all browsers
-npm run repack:chrome  # Build + pack Chrome only
-npm run repack:firefox # Build + pack Firefox only
-
-# Format code
-npm run format
+npm install          # Install dependencies
+npm run watch        # Development with hot reload
+npm run build        # Production build
+npm run repack       # Build + create browser packages
 ```
-
-### Testing in Browsers
-
-#### Chrome/Edge
-1. Open `chrome://extensions/` (or `edge://extensions/`)
-2. Enable **Developer mode**
-3. Click **Load unpacked** and select the `build/` folder
-
-#### Firefox
-1. Open `about:debugging#/runtime/this-firefox`
-2. Click **Load Temporary Add-on**
-3. Select any file in the `build/` folder (e.g., `manifest.json`)
-4. Note: Firefox 128+ required due to `world: "MAIN"` content script support
 
 ### Project Structure
 
 ```
-ai-agent-for-overleaf/
-├── src/
-│   ├── main/           # Main world content script (CodeMirror access)
-│   ├── iso/            # Isolated world content script (API calls)
-│   ├── common/         # Shared utilities (Suggestion class)
-│   ├── components/     # Preact UI components
-│   ├── utils/          # Helper functions
-│   ├── background.ts   # Service worker
-│   └── types.ts        # TypeScript interfaces
-├── public/             # Static assets (manifest, icons)
-├── config/             # Webpack configuration
-└── build/              # Output directory (git-ignored)
+src/
+├── main/           # Main world (CodeMirror access)
+├── iso/            # Isolated world (API calls, UI)
+├── components/     # Preact UI components
+├── utils/          # Helper functions
+├── prompts.ts      # AI prompt templates
+└── background.ts   # Service worker
 ```
-
-### Architecture
-
-The extension uses a **dual content script pattern**:
-
-1. **Main World** (`contentMainScript.js`): Runs with page privileges to access Overleaf's CodeMirror editor instance
-2. **Isolated World** (`contentIsoScript.js`): Runs in extension context for secure API calls
-
-Communication between worlds happens via custom DOM events.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how to get started:
+1. Fork → Branch → Make changes → Test → PR
 
-1. **Fork** the repository
-2. **Create a branch**: `git checkout -b feature/my-feature`
-3. **Make your changes** and test thoroughly
-4. **Run formatting**: `npm run format`
-5. **Commit**: `git commit -m "Add my feature"`
-6. **Push**: `git push origin feature/my-feature`
-7. **Open a Pull Request**
-
-### Areas for Contribution
-
-- [ ] Add support for other LaTeX editors
-- [ ] Improve suggestion quality with better prompts
-- [ ] Add more toolbar actions
-- [ ] Localization/translations
-- [ ] Unit tests
+**Areas for contribution:** Support for other editors, improved prompts, localization, tests.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE)
 
 ---
 
-## 🙏 Acknowledgments
-
-- Built with [Preact](https://preactjs.com/) for lightweight UI
-- Bootstrapped with [Chrome Extension CLI](https://github.com/dutiyesh/chrome-extension-cli)
-- Icons from [Lucide](https://lucide.dev/)
-- Diff functionality powered by [jsdiff](https://github.com/kpdecker/jsdiff)
-
----
-
-<p align="center">
-  Made with ❤️ for the academic community
-</p>
+<p align="center">Made with ❤️ for the academic community</p>

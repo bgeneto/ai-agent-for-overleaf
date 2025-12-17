@@ -79,16 +79,15 @@ export const StatusBadge = ({ onContinue, onCustomTask, onImprove, onFix, onActi
                     </div>
 
                     <div class="copilot-status-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={handleCustomTask}>
-                        <div class="copilot-status-menu-item-icon search">
+                        <div class="copilot-status-menu-item-icon custom">
                             <MessageSquareText size={14} />
                         </div>
                         <span class="copilot-status-menu-item-text">Custom Task</span>
                     </div>
 
                     <div class="copilot-status-menu-item" onClick={() => { setMenuOpen(false); onAction({ name: "Explain Error", icon: "lightbulb", prompt: "EXPLAIN_ERROR", onClick: "show_editor" }); }} title="Explain compilation error">
-                        <div class="copilot-status-menu-item-icon search">
-                            {/* Using lightbulb with amber color */}
-                            <div style={{ color: '#f59e0b' }}><Icon name="lightbulb" size={14} /></div>
+                        <div class="copilot-status-menu-item-icon explain">
+                            <Icon name="lightbulb" size={14} />
                         </div>
                         <span class="copilot-status-menu-item-text">Explain Error</span>
                     </div>
@@ -101,7 +100,7 @@ export const StatusBadge = ({ onContinue, onCustomTask, onImprove, onFix, onActi
                     </div>
 
                     <div class={`copilot-status-menu-item ${!hasSelection ? 'disabled' : ''}`} onClick={() => { if (hasSelection) { setMenuOpen(false); onFix(); } }} title={!hasSelection ? 'Select text first' : ''}>
-                        <div class="copilot-status-menu-item-icon improve">
+                        <div class="copilot-status-menu-item-icon fix">
                             <Wrench size={14} />
                         </div>
                         <span class="copilot-status-menu-item-text">Fix LaTeX</span>

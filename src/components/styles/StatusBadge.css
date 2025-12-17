@@ -136,6 +136,24 @@
   color: white;
 }
 
+.copilot-status-menu-item-icon.custom {
+  background-color: #6f42c1;
+  /* Purple */
+  color: white;
+}
+
+.copilot-status-menu-item-icon.explain {
+  background-color: #fd7e14;
+  /* Orange */
+  color: white;
+}
+
+.copilot-status-menu-item-icon.fix {
+  background-color: #dc3545;
+  /* Red */
+  color: white;
+}
+
 .copilot-status-menu-item-text {
   font-size: 13px;
 }
