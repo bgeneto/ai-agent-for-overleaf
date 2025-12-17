@@ -6,6 +6,7 @@ import { getImprovementStream } from "../utils/improvement";
 import { EditorSelectionData, Options } from "../types";
 import { X, ChevronDown, ChevronUp, Send, RotateCcw } from 'lucide-preact';
 import { postProcessToken } from '../utils/helper';
+import { PROMPTS } from '../prompts';
 
 // Declare Firefox-specific function
 declare function cloneInto<T>(obj: T, targetScope: any, options?: { cloneFunctions?: boolean }): T;
@@ -103,30 +104,19 @@ export const CustomPromptEditor = ({ data, options, signal, onClose }: CustomPro
         setLoading(true);
 
         try {
-            // Build the prompt with context
-            let fullPrompt = `You are a LaTeX expert assistant. The user has the following request:
-
-### User Instruction ###
-${userPrompt}
-### End of Instruction ###
-`;
-
-            if (hasSelection) {
-                fullPrompt += `
-### Selected Text (Context) ###
+            // Build the selected text section if there's a selection
+            const selectedTextSection = hasSelection
+                ? `
+### LaTeX content ###
 ${data!.content.selection}
-### End of Selected Text ###
-`;
-            }
+### End of LaTeX content ###
+`
+                : '';
 
-            fullPrompt += `
-RULES:
-- Output ONLY valid LaTeX code.
-- No explanations, comments, markdown fences, or preambles.
-- Detect and match the language of the text automatically.
-- Start immediately with the LaTeX content.
-
-Generate the requested LaTeX content.`;
+            // Build the full prompt using centralized template
+            const fullPrompt = PROMPTS.CUSTOM_TASK
+                .replace('{{userInstruction}}', userPrompt)
+                .replace('{{selectedTextSection}}', selectedTextSection);
 
             const stream = getImprovementStream(
                 { selection: hasSelection ? data!.content.selection : "", before: "", after: "" },
@@ -154,29 +144,19 @@ Generate the requested LaTeX content.`;
         setLoading(true);
 
         try {
-            let fullPrompt = `You are a LaTeX expert assistant. The user has the following request:
-
-### User Instruction ###
-${userPrompt}
-### End of Instruction ###
-`;
-
-            if (hasSelection) {
-                fullPrompt += `
-### Selected Text (Context) ###
+            // Build the selected text section if there's a selection
+            const selectedTextSection = hasSelection
+                ? `
+### LaTeX content ###
 ${data!.content.selection}
-### End of Selected Text ###
-`;
-            }
+### End of LaTeX content ###
+`
+                : '';
 
-            fullPrompt += `
-RULES:
-- Output ONLY valid LaTeX code.
-- No explanations, comments, markdown fences, or preambles.
-- Detect and match the language of the text automatically.
-- Start immediately with the LaTeX content.
-
-Generate the requested LaTeX content.`;
+            // Build the full prompt using centralized template
+            const fullPrompt = PROMPTS.CUSTOM_TASK
+                .replace('{{userInstruction}}', userPrompt)
+                .replace('{{selectedTextSection}}', selectedTextSection);
 
             const stream = getImprovementStream(
                 { selection: hasSelection ? data!.content.selection : "", before: "", after: "" },
@@ -216,10 +196,11 @@ Generate the requested LaTeX content.`;
         if (loading) return;
 
         const cleanContent = postProcessToken(content);
-        const insertPos = data?.head ?? data?.to ?? 0;
+        // Always insert after the selection (data.to) with two newlines for LaTeX
+        const insertPos = data?.to ?? 0;
         window.dispatchEvent(
             createCrossContextEvent('copilot:editor:insert', {
-                content: cleanContent,
+                content: '\n\n' + cleanContent,
                 pos: insertPos
             })
         );

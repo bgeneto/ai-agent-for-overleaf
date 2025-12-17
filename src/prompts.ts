@@ -21,7 +21,7 @@ export const PROMPTS = {
 RULES:
 
 - No explanations, comments, or descriptions
-- No code fences, markdown formatting, backticks, or preambles (no \`latex or \` anywhere)
+- No code fences, markdown formatting, backticks, or preambles (no usepackage, documentclass, etc. anywhere)
 - No "Here is the continuation..." or "I will continue..." text
 - Output pure LaTeX code starting immediately with the continuation
 - Detect and match the language automatically
@@ -66,7 +66,7 @@ TEXT:
 RULES:
 
 - No explanations, comments, or descriptions
-- No code fences, markdown formatting, backticks, or preambles (no \`latex or \` anywhere)
+- No code fences, markdown formatting, backticks, or preambles (no usepackage, documentclass, etc. anywhere)
 - No "Here is..." or "I improved..." text
 - Output pure LaTeX code starting immediately with the corrected content
 - Detect the language automatically and apply native-speaker corrections for that language
@@ -102,7 +102,7 @@ LaTeX:
 RULES:
 
 - No explanations, comments, or descriptions
-- No code fences, markdown formatting, or preambles
+- No code fences, markdown formatting, or preambles (no usepackage, documentclass, etc. anywhere)
 - No "Here is..." or "I fixed..." text
 - Preserve all content exactly as intended
 - Fix only syntax errors: unclosed environments (\\begin without \\end), bracket mismatches ({[()]}), unclosed math delimiters like $, $$, \\[ \\], \\( \\), table syntax errors (column specs, \\\\, &), malformed \\includegraphics or \\caption, unescaped special characters (&%$#_{}~^\\), missing command arguments, any other LaTeX compilation errors
@@ -131,7 +131,80 @@ Explain what this error means in simple terms and how to fix it in LaTeX.
 Be concise. Use Markdown for formatting.
 If the error refers to a specific line or command, explain it.
 If a package is missing from the LaTeX document, explain how to add it.
-If a command is not recognized, explain how to fix it.`
+If a command is not recognized, explain how to fix it.`,
+
+    /**
+     * Prompt template for "Custom Task" action.
+     * Used when user enters a custom instruction.
+     * The {{userInstruction}} and {{selectedText}} placeholders are replaced at runtime.
+     */
+    CUSTOM_TASK: `You are a LaTeX expert assistant working in a LaTeX editor (Overleaf). Execute the user's instruction below on the provided LaTeX content.
+
+### User Instruction ###
+{{userInstruction}}
+### End of Instruction ###
+{{selectedTextSection}}
+
+RULES:
+
+- Output ONLY valid LaTeX code
+- No explanations, comments, markdown fences, backticks, or preambles (usepackage, documentclass, etc.)
+- No "Here is..." or "I have..." text
+- Start immediately with the LaTeX content
+- Detect and match the language of the text automatically
+
+PRESERVE AND RESPECT:
+
+- All LaTeX commands, environments, math mode content unless instructed to modify
+- LaTeX syntax: proper $ for inline math, \\[...\\] or environments for display math
+- Document structure and formatting conventions
+- Citations (\\cite{}), references (\\ref{}), labels (\\label{})
+- Technical terminology and established vocabulary
+- Table/figure formatting and numbering patterns
+
+CONTEXT:
+
+- You are working in a LaTeX academic document editor
+- The output will be inserted directly into the document
+- Maintain compatibility with standard LaTeX packages
+
+Execute the instruction and output the result.`,
+
+    /**
+     * Wrapper template for user-defined custom toolbar actions.
+     * Wraps simple user prompts (like "Translate to pt-BR") with proper LaTeX context.
+     * The {{userPrompt}} placeholder contains the user's original prompt after variable substitution.
+     */
+    CUSTOM_ACTION_WRAPPER: `You are a LaTeX expert assistant working in a LaTeX editor (Overleaf). Execute the following task on the provided LaTeX content.
+
+### Task ###
+{{userPrompt}}
+### End of Task ###
+
+RULES:
+
+- Output ONLY valid LaTeX code
+- No explanations, comments, markdown fences, backticks, or preambles (no usepackage, documentclass, etc.)
+- No "Here is..." or "I have..." text
+- Start immediately with the LaTeX content
+- Detect and match the language of the text automatically (unless translation is explicitly requested)
+
+PRESERVE AND RESPECT:
+
+- All LaTeX commands, environments, math mode content unless instructed to modify
+- LaTeX syntax: proper $ for inline math, \\[...\\] or environments for display math
+- Document structure and formatting conventions
+- Citations (\\cite{}), references (\\ref{}), labels (\\label{})
+- Technical terminology and established vocabulary
+- Table/figure formatting and numbering patterns
+
+CONTEXT:
+
+- You are working in a LaTeX academic document editor
+- The output will be inserted or replace the selected content directly in the document
+- Maintain compatibility with standard LaTeX packages
+
+Execute the task and output the result.`
 } as const;
 
 /**
@@ -203,17 +276,37 @@ export function buildContinuationPrompt(content: TextContent, customTemplate?: s
 /**
  * Builds the improvement prompt based on the current text content.
  * 
+ * For user-defined custom toolbar actions with simple prompts (like "Translate to pt-BR"),
+ * this function automatically wraps them with proper LaTeX context using CUSTOM_ACTION_WRAPPER.
+ * 
  * @param content - The text content containing the selection to improve
  * @param template - The prompt template to use
  * @returns The formatted prompt string ready to send to the LLM
  */
 export function buildImprovePrompt(content: TextContent, template: string): string {
     if (template) {
+        // Handle legacy <input> placeholder
         if (template.indexOf('<input>') >= 0) {
             return template.replace('<input>', content.selection);
         }
 
-        return renderPrompt(template, content);
+        // First, render the template with variable substitution ({{selection}}, {{before}}, {{after}})
+        const renderedPrompt = renderPrompt(template, content);
+
+        // Check if this is a "simple" user prompt that needs wrapping with LaTeX context.
+        // Built-in prompts already contain comprehensive rules (they have "RULES:" sections).
+        // User prompts typically don't have these structured sections.
+        const isBuiltInOrComprehensive =
+            renderedPrompt.includes('RULES:') ||
+            renderedPrompt.includes('PRESERVE') ||
+            renderedPrompt.includes('No explanations, comments');
+
+        if (!isBuiltInOrComprehensive) {
+            // Wrap simple user prompt with LaTeX context
+            return PROMPTS.CUSTOM_ACTION_WRAPPER.replace('{{userPrompt}}', renderedPrompt);
+        }
+
+        return renderedPrompt;
     }
 
     // Use fallback prompt

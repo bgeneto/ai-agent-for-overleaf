@@ -168,11 +168,11 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
         })
       );
     } else {
-      // No selection or not a continuation action: just insert at cursor position
+      // Insert after selection (data.to) with two newlines for LaTeX formatting
       window.dispatchEvent(
         createCrossContextEvent('copilot:editor:insert', {
-          content: cleanContent,
-          pos: data.head ?? data.to // Insert at cursor (head) or end of selection (to)
+          content: '\n\n' + cleanContent,
+          pos: data.to // Always insert after the selection
         })
       );
     }
