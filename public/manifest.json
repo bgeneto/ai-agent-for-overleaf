@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Agent for Overleaf",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "AI-powered assistant for Overleaf LaTeX editor",
   "icons": {
     "16": "icons/icon_16.png",

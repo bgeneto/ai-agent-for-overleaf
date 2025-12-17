@@ -1,0 +1,258 @@
+/* Custom Prompt Editor Styles */
+
+div#copilot-custom-prompt-editor {
+    position: absolute;
+    background-color: #ffffff;
+    min-height: 220px;
+    max-height: 600px;
+    width: 520px;
+    padding: 0;
+    margin: 0;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+    border-radius: 8px;
+    border: 1px solid #e1e4e8;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    font-size: 14px;
+    z-index: 9999;
+    resize: both;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+div#copilot-custom-prompt-editor div.custom-prompt-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+div#copilot-custom-prompt-editor div.custom-prompt-header {
+    padding: 12px 16px;
+    background-color: #f6f8fa;
+    border-bottom: 1px solid #e1e4e8;
+    border-radius: 8px 8px 0 0;
+    cursor: move;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+div#copilot-custom-prompt-editor .header-title {
+    font-weight: 600;
+    color: #24292e;
+    display: flex;
+    align-items: center;
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-action {
+    color: #586069;
+    cursor: pointer;
+    display: inline-flex !important;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+    text-decoration: none !important;
+    font-size: 13px;
+    margin-left: 8px;
+    border: none;
+    background: none;
+
+    span:last-child {
+        margin-left: 6px;
+        font-weight: 500;
+    }
+
+    &:hover {
+        background-color: #e1e4e8;
+        color: #24292e;
+        text-decoration: none;
+    }
+
+    &.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    &.primary {
+        background-color: #238636;
+        color: white;
+
+        &:hover {
+            background-color: #2ea043;
+        }
+    }
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-close {
+    color: #6a737d;
+    margin-left: 12px;
+
+    &:hover {
+        background-color: #ffeef0;
+        color: #cb2431;
+    }
+}
+
+div#copilot-custom-prompt-editor span.custom-prompt-header-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* Input Phase Styles */
+div#copilot-custom-prompt-editor .custom-prompt-input-phase {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 12px;
+    gap: 12px;
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-context {
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    background-color: #f6f8fa;
+    overflow: hidden;
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-context-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #586069;
+    font-weight: 500;
+    user-select: none;
+
+    &:hover {
+        background-color: #eaeef2;
+    }
+}
+
+div#copilot-custom-prompt-editor .context-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+div#copilot-custom-prompt-editor .context-toggle {
+    display: flex;
+    align-items: center;
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-context-content {
+    padding: 8px 12px;
+    border-top: 1px solid #e1e4e8;
+    font-size: 13px;
+    color: #24292e;
+    max-height: 100px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background-color: #ffffff;
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 80px;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 10px 12px;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #24292e;
+    background-color: white;
+    box-sizing: border-box;
+
+    &:focus {
+        border-color: #0969da;
+        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+    }
+
+    &::placeholder {
+        color: #8b949e;
+    }
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #24292e;
+    cursor: pointer;
+    user-select: none;
+
+    input[type="checkbox"] {
+        cursor: pointer;
+        accent-color: #238636;
+    }
+
+    &.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+
+        input[type="checkbox"] {
+            cursor: not-allowed;
+        }
+    }
+}
+
+div#copilot-custom-prompt-editor .custom-prompt-generate-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: #238636;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover:not(:disabled) {
+        background-color: #2ea043;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+/* Output Phase Styles */
+div#copilot-custom-prompt-editor .custom-prompt-output-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 150px;
+    border: none;
+    padding: 12px;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #24292e;
+    background-color: white;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    box-sizing: border-box;
+}

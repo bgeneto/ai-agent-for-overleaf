@@ -52,13 +52,20 @@ export function showToolbar(data: EditorSelectionData, options: Options, signal:
         toolbarEditor.style.top = `${parseInt(toolbar.style.top) - 205}px`;
 
       const scroller = document.querySelector('div.cm-scroller');
-      let width = scroller?.getBoundingClientRect().width ?? 400;
+      const scrollerRect = scroller?.getBoundingClientRect();
+      let width = scrollerRect?.width ?? 400;
       width = Math.min(Math.max(width, 400), 800);
       toolbarEditor.style.width = `${width}px`;
 
-      const rect = toolbar.getBoundingClientRect();
-      let left = Math.max(parseInt(toolbar.style.left) - (width - rect.width) / 2, 0);
-      toolbarEditor.style.left = `${left}px`;
+      // Center the editor within the cm-scroller bounds
+      if (scrollerRect) {
+        const scrollerCenter = scrollerRect.left + scrollerRect.width / 2;
+        toolbarEditor.style.left = `${Math.max(scrollerCenter - width / 2, scrollerRect.left)}px`;
+      } else {
+        const rect = toolbar.getBoundingClientRect();
+        let left = Math.max(parseInt(toolbar.style.left) - (width - rect.width) / 2, 0);
+        toolbarEditor.style.left = `${left}px`;
+      }
 
       document.body.appendChild(toolbarEditor);
       render(h(ToolbarEditor, { action, data, options, signal }), toolbarEditor);

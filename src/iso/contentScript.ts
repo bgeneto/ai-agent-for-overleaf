@@ -9,6 +9,7 @@ import { getSuggestion } from '../utils/suggestion';
 import { BUILTIN_ACTIONS, PROMPTS } from '../prompts';
 import { StatusBadge } from '../components/StatusBadge';
 import { ToolbarEditor } from '../components/ToolbarEditor';
+import { CustomPromptEditor } from '../components/CustomPromptEditor';
 import { render, h } from 'preact';
 import { getCursorOrSelectionRect } from '../utils/dom';
 
@@ -30,6 +31,7 @@ function renderBadge() {
     render(
       h(StatusBadge, {
         onContinue: handleContinue,
+        onCustomTask: handleCustomTask,
         onImprove: () => handleAction(BUILTIN_ACTIONS.IMPROVE),
         onFix: () => handleAction(BUILTIN_ACTIONS.FIX),
         onAction: handleAction, // Generic handler for dynamic actions
@@ -64,6 +66,54 @@ function handleContinue() {
 
   // No selection - dispatch request to main world to get cursor context (before/after)
   window.dispatchEvent(new CustomEvent('copilot:menu:continue'));
+}
+
+// Handle "Custom Task" action from menu
+function handleCustomTask() {
+  if (!options) return;
+
+  improveAbortController?.abort();
+  improveAbortController = new AbortController();
+
+  // Remove any existing toolbar UI
+  document.getElementById('copilot-toolbar')?.remove();
+  document.getElementById('copilot-toolbar-editor')?.remove();
+  document.getElementById('copilot-custom-prompt-editor')?.remove();
+
+  // Find cursor position / selection
+  const rect = getCursorOrSelectionRect();
+  if (!rect) return;
+
+  const customPromptEditor = document.createElement('div');
+  customPromptEditor.setAttribute('id', 'copilot-custom-prompt-editor');
+
+  // Position the editor - center it within the CodeMirror pane
+  customPromptEditor.style.top = `${rect.top + 30}px`;
+
+  const scroller = document.querySelector('div.cm-scroller');
+  const scrollerRect = scroller?.getBoundingClientRect();
+  let width = scrollerRect?.width ?? 400;
+  width = Math.min(Math.max(width, 400), 800);
+  customPromptEditor.style.width = `${width}px`;
+
+  // Center the editor within the cm-scroller bounds
+  if (scrollerRect) {
+    const scrollerCenter = scrollerRect.left + scrollerRect.width / 2;
+    customPromptEditor.style.left = `${Math.max(scrollerCenter - width / 2, scrollerRect.left)}px`;
+  } else {
+    customPromptEditor.style.left = `${Math.max(rect.left - width / 2, 0)}px`;
+  }
+
+  document.body.appendChild(customPromptEditor);
+
+  render(h(CustomPromptEditor, {
+    data: currentSelection,
+    options,
+    signal: improveAbortController.signal,
+    onClose: () => {
+      document.getElementById('copilot-custom-prompt-editor')?.remove();
+    }
+  }), customPromptEditor);
 }
 
 // Handle continuation request from main world (response with context)
@@ -110,14 +160,22 @@ function openToolbarEditor(action: any, data: any) {
   const toolbarEditor = document.createElement('div');
   toolbarEditor.setAttribute('id', 'copilot-toolbar-editor');
 
-  // Position the editor
+  // Position the editor - center it within the CodeMirror pane
   toolbarEditor.style.top = `${rect.top + 30}px`;
 
   const scroller = document.querySelector('div.cm-scroller');
-  let width = scroller?.getBoundingClientRect().width ?? 400;
+  const scrollerRect = scroller?.getBoundingClientRect();
+  let width = scrollerRect?.width ?? 400;
   width = Math.min(Math.max(width, 400), 800);
   toolbarEditor.style.width = `${width}px`;
-  toolbarEditor.style.left = `${Math.max(rect.left - width / 2, 0)}px`;
+
+  // Center the editor within the cm-scroller bounds
+  if (scrollerRect) {
+    const scrollerCenter = scrollerRect.left + scrollerRect.width / 2;
+    toolbarEditor.style.left = `${Math.max(scrollerCenter - width / 2, scrollerRect.left)}px`;
+  } else {
+    toolbarEditor.style.left = `${Math.max(rect.left - width / 2, 0)}px`;
+  }
 
   document.body.appendChild(toolbarEditor);
 

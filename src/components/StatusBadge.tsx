@@ -1,6 +1,6 @@
 
 import { h } from 'preact';
-import { Bot, Sparkles, Pencil, Search, Settings, Loader, Wrench } from 'lucide-preact';
+import { Bot, Sparkles, Pencil, Search, Settings, Loader, Wrench, MessageSquareText } from 'lucide-preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import './styles/StatusBadge.css';
 
@@ -9,6 +9,7 @@ import { ToolbarAction } from '../types';
 
 interface StatusBadgeProps {
     onContinue: () => void;
+    onCustomTask: () => void;
     onImprove: () => void;
     onFix: () => void;
     onAction: (action: ToolbarAction) => void;
@@ -18,7 +19,7 @@ interface StatusBadgeProps {
     actions: ToolbarAction[];
 }
 
-export const StatusBadge = ({ onContinue, onImprove, onFix, onAction, onSearch, hasSelection, isLoading, actions }: StatusBadgeProps) => {
+export const StatusBadge = ({ onContinue, onCustomTask, onImprove, onFix, onAction, onSearch, hasSelection, isLoading, actions }: StatusBadgeProps) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -36,6 +37,11 @@ export const StatusBadge = ({ onContinue, onImprove, onFix, onAction, onSearch, 
     const handleContinue = () => {
         setMenuOpen(false);
         onContinue();
+    };
+
+    const handleCustomTask = () => {
+        setMenuOpen(false);
+        onCustomTask();
     };
 
     const handleImprove = () => {
@@ -70,6 +76,13 @@ export const StatusBadge = ({ onContinue, onImprove, onFix, onAction, onSearch, 
                             <Sparkles size={14} />
                         </div>
                         <span class="copilot-status-menu-item-text">Continue Writing</span>
+                    </div>
+
+                    <div class="copilot-status-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={handleCustomTask}>
+                        <div class="copilot-status-menu-item-icon search">
+                            <MessageSquareText size={14} />
+                        </div>
+                        <span class="copilot-status-menu-item-text">Custom Task</span>
                     </div>
 
                     <div class="copilot-status-menu-item" onClick={() => { setMenuOpen(false); onAction({ name: "Explain Error", icon: "lightbulb", prompt: "EXPLAIN_ERROR", onClick: "show_editor" }); }} title="Explain compilation error">

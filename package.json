@@ -1,6 +1,6 @@
 {
   "name": "ai-agent-for-overleaf",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "AI-powered assistant for Overleaf LaTeX editor",
   "private": true,
   "scripts": {
