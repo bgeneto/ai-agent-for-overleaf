@@ -47,7 +47,6 @@ export const CustomPromptEditor = ({ data, options, signal, onClose }: CustomPro
     const [userPrompt, setUserPrompt] = useState("");
     const [content, setContent] = useState("");
     const [phase, setPhase] = useState<"input" | "output">("input");
-    const [replaceSelection, setReplaceSelection] = useState(!!data?.content?.selection?.trim());
     const [contextExpanded, setContextExpanded] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const promptInputRef = useRef<HTMLTextAreaElement>(null);
@@ -199,30 +198,31 @@ Generate the requested LaTeX content.`;
         }
     };
 
-    const onInsertOrReplace = () => {
+    const onReplace = () => {
+        if (loading || !hasSelection || !data) return;
+
+        const cleanContent = postProcessToken(content);
+        window.dispatchEvent(
+            createCrossContextEvent('copilot:editor:replace', {
+                content: cleanContent,
+                from: data.from,
+                to: data.to,
+            })
+        );
+        handleClose();
+    };
+
+    const onInsert = () => {
         if (loading) return;
 
         const cleanContent = postProcessToken(content);
-
-        if (replaceSelection && hasSelection && data) {
-            // Replace the selection
-            window.dispatchEvent(
-                createCrossContextEvent('copilot:editor:replace', {
-                    content: cleanContent,
-                    from: data.from,
-                    to: data.to,
-                })
-            );
-        } else {
-            // Insert at cursor position
-            const insertPos = data?.head ?? data?.to ?? 0;
-            window.dispatchEvent(
-                createCrossContextEvent('copilot:editor:insert', {
-                    content: cleanContent,
-                    pos: insertPos
-                })
-            );
-        }
+        const insertPos = data?.head ?? data?.to ?? 0;
+        window.dispatchEvent(
+            createCrossContextEvent('copilot:editor:insert', {
+                content: cleanContent,
+                pos: insertPos
+            })
+        );
         handleClose();
     };
 
@@ -254,9 +254,15 @@ Generate the requested LaTeX content.`;
                                 <span><RotateCcw size={14} /></span>
                                 <span>Regenerate</span>
                             </div>
-                            <div className={loading ? "disabled custom-prompt-action primary" : "custom-prompt-action primary"} onClick={onInsertOrReplace}>
-                                <span><Icon name={replaceSelection && hasSelection ? "check" : "arrow-right"} size={14} /></span>
-                                <span>{replaceSelection && hasSelection ? "Replace" : "Insert"}</span>
+                            {hasSelection && (
+                                <div className={loading ? "disabled custom-prompt-action" : "custom-prompt-action"} onClick={onReplace}>
+                                    <span><Icon name="check" size={14} /></span>
+                                    <span>Replace</span>
+                                </div>
+                            )}
+                            <div className={loading ? "disabled custom-prompt-action" : "custom-prompt-action"} onClick={onInsert}>
+                                <span><Icon name="arrow-right" size={14} /></span>
+                                <span>Insert</span>
                             </div>
                         </>
                     )}
@@ -300,17 +306,8 @@ Generate the requested LaTeX content.`;
                         }}
                     />
 
-                    {/* Options row */}
+                    {/* Generate button */}
                     <div class="custom-prompt-options">
-                        <label class={`custom-prompt-checkbox-label ${!hasSelection ? 'disabled' : ''}`}>
-                            <input
-                                type="checkbox"
-                                checked={replaceSelection}
-                                disabled={!hasSelection}
-                                onChange={(e) => setReplaceSelection((e.target as HTMLInputElement).checked)}
-                            />
-                            <span>Replace selection</span>
-                        </label>
                         <button
                             class="custom-prompt-generate-btn"
                             onClick={onGenerate}
