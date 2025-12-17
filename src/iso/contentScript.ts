@@ -278,6 +278,7 @@ async function handleExplainError(action: { name: string, prompt: string, icon: 
 
     render(h(ExplainError, {
       errorCtx,
+      errorTitle: title,
       options,
       onClose: () => document.getElementById('copilot-side-panel')?.remove()
     }), sidePanel);

@@ -5,14 +5,16 @@ import { getImprovementStream } from "../utils/improvement";
 import { marked } from "marked";
 import DOMPurify from 'dompurify';
 import { Options } from "../types";
+import { PROMPTS } from "../prompts";
 
 export interface ExplainErrorProps {
     errorCtx: string;
+    errorTitle?: string;
     options: Options;
     onClose: () => void;
 }
 
-export const ExplainError = ({ errorCtx, options, onClose }: ExplainErrorProps) => {
+export const ExplainError = ({ errorCtx, errorTitle, options, onClose }: ExplainErrorProps) => {
     const [content, setContent] = useState("");
     const [loading, setLoading] = useState(true);
 
@@ -21,8 +23,11 @@ export const ExplainError = ({ errorCtx, options, onClose }: ExplainErrorProps) 
             const controller = new AbortController();
 
             try {
-                const prompt = options.explainErrorPrompt || "Please explain this LaTeX error and how to fix it:\n\n{{error}}";
-                const finalPrompt = prompt.replace("{{error}}", errorCtx);
+                const prompt = options.explainErrorPrompt || PROMPTS.EXPLAIN_ERROR;
+                const finalPrompt = prompt
+                    .replace("{{error_title}}", errorTitle || "Error")
+                    .replace("{{error_context}}", errorCtx)
+                    .replace("{{error}}", errorCtx); // Support both for backward compatibility
 
                 // Using existing getImprovementStream but repurposed for explanation
                 // We'll pass the error context as 'content' and a custom prompt
