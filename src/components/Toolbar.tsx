@@ -5,6 +5,28 @@ import { getImprovement } from "../utils/improvement";
 import { useState } from "preact/hooks";
 import "./styles/Toolbar.css";
 
+// Helper function to create Firefox-safe CustomEvents for cross-context communication
+// Firefox requires cloneInto when dispatching events from isolated world to main world
+function createCrossContextEvent(eventName: string, detail: any): CustomEvent {
+  let clonedDetail = detail;
+
+  // Check if we're in Firefox (cloneInto is Firefox-specific)
+  if (typeof (window as any).cloneInto === 'function') {
+    try {
+      clonedDetail = (window as any).cloneInto(detail, window, { cloneFunctions: false });
+    } catch (e) {
+      // Fallback to original detail if cloning fails
+      console.warn('Failed to clone event detail for Firefox:', e);
+    }
+  }
+
+  return new CustomEvent(eventName, {
+    bubbles: true,
+    composed: true,
+    detail: clonedDetail,
+  });
+}
+
 export interface ToolbarProps {
   data: EditorSelectionData;
   actions: ToolbarAction[];
@@ -28,14 +50,10 @@ export const Toolbar = ({ data, actions, searchDisabled, onShowEditor, onClickSe
 
       if (signal.aborted) return;
       window.dispatchEvent(
-        new CustomEvent('copilot:editor:replace', {
-          bubbles: true,
-          composed: true,
-          detail: {
-            content: content,
-            from: data.from,
-            to: data.to,
-          },
+        createCrossContextEvent('copilot:editor:replace', {
+          content: content,
+          from: data.from,
+          to: data.to,
         })
       );
       setLoading(false);

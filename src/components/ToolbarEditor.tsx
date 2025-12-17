@@ -9,6 +9,28 @@ import { EditorSelectionData, Options } from "../types";
 import { X } from 'lucide-preact';
 import { postProcessToken } from '../utils/helper';
 
+// Helper function to create Firefox-safe CustomEvents for cross-context communication
+// Firefox requires cloneInto when dispatching events from isolated world to main world
+function createCrossContextEvent(eventName: string, detail: any): CustomEvent {
+  let clonedDetail = detail;
+
+  // Check if we're in Firefox (cloneInto is Firefox-specific)
+  if (typeof (window as any).cloneInto === 'function') {
+    try {
+      clonedDetail = (window as any).cloneInto(detail, window, { cloneFunctions: false });
+    } catch (e) {
+      // Fallback to original detail if cloning fails
+      console.warn('Failed to clone event detail for Firefox:', e);
+    }
+  }
+
+  return new CustomEvent(eventName, {
+    bubbles: true,
+    composed: true,
+    detail: clonedDetail,
+  });
+}
+
 interface ToolbarEditorProps {
   data: EditorSelectionData,
   action: { name: string, prompt: string, icon: string, onClick?: string, isContinuation?: boolean },
@@ -103,14 +125,10 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
     const cleanContent = postProcessToken(content);
 
     window.dispatchEvent(
-      new CustomEvent('copilot:editor:replace', {
-        bubbles: true,
-        composed: true,
-        detail: {
-          content: cleanContent,
-          from: data.from,
-          to: data.to,
-        },
+      createCrossContextEvent('copilot:editor:replace', {
+        content: cleanContent,
+        from: data.from,
+        to: data.to,
       })
     );
     // Close after replacing
@@ -131,26 +149,18 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
     if (action.isContinuation && hasSelection) {
       // Replace selection with: original selection + generated continuation
       window.dispatchEvent(
-        new CustomEvent('copilot:editor:replace', {
-          bubbles: true,
-          composed: true,
-          detail: {
-            content: data.content.selection + cleanContent,
-            from: data.from,
-            to: data.to,
-          },
+        createCrossContextEvent('copilot:editor:replace', {
+          content: data.content.selection + cleanContent,
+          from: data.from,
+          to: data.to,
         })
       );
     } else {
       // No selection or not a continuation action: just insert at cursor position
       window.dispatchEvent(
-        new CustomEvent('copilot:editor:insert', {
-          bubbles: true,
-          composed: true,
-          detail: {
-            content: cleanContent,
-            pos: data.head ?? data.to // Insert at cursor (head) or end of selection (to)
-          },
+        createCrossContextEvent('copilot:editor:insert', {
+          content: cleanContent,
+          pos: data.head ?? data.to // Insert at cursor (head) or end of selection (to)
         })
       );
     }
