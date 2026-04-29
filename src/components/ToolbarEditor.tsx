@@ -118,7 +118,7 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
         : getImprovementStream(data.content, action.prompt, options, signal, action.isCustomAction);
 
       for await (const chunk of stream) {
-        setContent((prev) => prev + chunk.content);
+        setContent((prev) => postProcessToken(prev + chunk.content));
         if (textareaRef.current) {
           textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
         }

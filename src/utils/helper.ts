@@ -23,8 +23,9 @@ const PromptVariableRegex = /\{\{[\w]*(selection|before|after)(\[([-]?\d*):([-]?
 export function postProcessToken(token: string | null) {
   if (!token) return '';
 
-  // Remove reasoning/thinking tags like <think>...</think>
-  token = token.replace(/<\?xml[\s\S]*?<\/\?xml>|<thinking[\s\S]*?<\/thinking>/gi, '');
+  // Remove reasoning/thinking tags - handle multiline with DOTALL-like behavior
+  token = token.replace(/<thinking[\s\S]*?<\/thinking>/gi, '');
+  token = token.replace(/<\?xml[\s\S]*?<\/\?xml>/gi, '');
 
   // Remove any remaining xml processing instructions
   token = token.replace(/<\?[a-z]+[^>]*?\?>/g, '');
