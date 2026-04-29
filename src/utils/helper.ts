@@ -43,6 +43,22 @@ export function postProcessToken(token: string | null) {
   return token;
 }
 
+export function sanitizeContentForApi(content: string): string {
+  // Remove \includegraphics commands to prevent API from treating image paths as actual images
+  let sanitized = content.replace(/\\includegraphics\b(?:(?:\[[^\]]*\])?\{)/g, '\\includegraphics{[IMAGE_REMOVED]');
+  
+  // Remove \href to image files
+  sanitized = sanitized.replace(/\\href\b(\{[^}]*)\{(.*?\.(png|jpg|jpeg|gif|svg|pdf|tiff|bmp|webp))\}/gi, '\\href{$1}[IMAGE_REMOVED]');
+  
+  // Remove \url to image files
+  sanitized = sanitized.replace(/\\url\b(\{.*?\.(png|jpg|jpeg|gif|svg|pdf|tiff|bmp|webp)})\}/gi, '{[IMAGE_REMOVED]}');
+  
+  // Remove base64 data URIs that might contain images
+  sanitized = sanitized.replace(/data:image\/[a-z]+;base64,[A-Za-z0-9+\/=]+/g, '[BASE64_IMAGE_REMOVED]');
+  
+  return sanitized;
+}
+
 export async function getOptions() {
   const data = await chrome.storage.local.get([LOCAL_STORAGE_KEY_OPTIONS, LOCAL_STORAGE_KEY_API_KEY, LOCAL_STORAGE_KEY_BASE_URL, LOCAL_STORAGE_KEY_MODEL]);
   const options = (data[LOCAL_STORAGE_KEY_OPTIONS] ?? {}) as Options;

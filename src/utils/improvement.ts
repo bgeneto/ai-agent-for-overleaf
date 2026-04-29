@@ -6,6 +6,7 @@ import {
   DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN
 } from '../constants';
 import { buildImprovePrompt, buildCustomActionPrompt } from '../prompts';
+import { sanitizeContentForApi } from './helper';
 import { Options, TextContent, StreamChunk } from '../types';
 
 
@@ -34,9 +35,10 @@ export async function* getImprovementStream(content: TextContent, prompt: string
   }
 
   // Use buildCustomActionPrompt for user-defined custom actions, buildImprovePrompt for built-in actions
-  const promptContent = isCustomAction
+  let promptContent = isCustomAction
     ? buildCustomActionPrompt(content, prompt)
     : buildImprovePrompt(content, prompt);
+  promptContent = sanitizeContentForApi(promptContent);
 
   // Connect to background script
   const port = chrome.runtime.connect({ name: 'openai-stream' });

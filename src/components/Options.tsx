@@ -21,7 +21,7 @@ const OptionsForm = () => {
   useEffect(() => {
     getOptions().then((options) => {
       onOptionsChange({
-        suggestionMaxOutputToken: options.suggestionMaxOutputToken ?? 2048,
+        suggestionMaxOutputToken: options.suggestionMaxOutputToken ?? 4096,
         thinkingTokenBudget: options.thinkingTokenBudget ?? 1024,
         ...options,
       });
@@ -565,7 +565,7 @@ const OptionsForm = () => {
                     value={state.suggestionMaxOutputToken}
                     onChange={(e) => onOptionsChange({ ...state, suggestionMaxOutputToken: parseInt(e.currentTarget.value) })}
                   />
-                  <span className="form-hint">Maximum tokens per suggestion (default: 1024). Automatically increased if thinking_token_budget is set.</span>
+                  <span className="form-hint">Maximum tokens per suggestion (default: 4096). Automatically increased if thinking_token_budget is set.</span>
                 </div>
               </div>
             </div>

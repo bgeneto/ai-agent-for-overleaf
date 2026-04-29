@@ -6,6 +6,7 @@ import {
   DEFAULT_MODEL,
 } from '../constants';
 import { buildContinuationPrompt } from '../prompts';
+import { sanitizeContentForApi } from './helper';
 import { Options, StreamChunk, TextContent } from '../types';
 
 
@@ -20,7 +21,8 @@ export async function* getSuggestion(content: TextContent, signal: AbortSignal, 
     return;
   }
 
-  const promptContent = buildContinuationPrompt(content, options.suggestionPrompt);
+  let promptContent = buildContinuationPrompt(content, options.suggestionPrompt);
+  promptContent = sanitizeContentForApi(promptContent);
 
   // Connect to background script
   const port = chrome.runtime.connect({ name: 'openai-stream' });
