@@ -547,7 +547,22 @@ const OptionsForm = () => {
                     value={state.suggestionMaxOutputToken}
                     onChange={(e) => onOptionsChange({ ...state, suggestionMaxOutputToken: parseInt(e.currentTarget.value) })}
                   />
-                  <span className="form-hint">Maximum tokens per suggestion (default: 1024)</span>
+                  <span className="form-hint">Maximum tokens per suggestion (default: 1024). Automatically increased if thinking_token_budget is set.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <div className="form-row">
+                <label className="form-label">Thinking Token Budget</label>
+                <div className="form-control">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={state.thinkingTokenBudget}
+                    onChange={(e) => onOptionsChange({ ...state, thinkingTokenBudget: parseInt(e.currentTarget.value) })}
+                  />
+                  <span className="form-hint">Set this if your model/provider supports reasoning tokens. max_tokens will be automatically set higher than this value to ensure room for actual content.</span>
                 </div>
               </div>
             </div>

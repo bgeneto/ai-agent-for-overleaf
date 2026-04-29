@@ -23,6 +23,12 @@ const PromptVariableRegex = /\{\{[\w]*(selection|before|after)(\[([-]?\d*):([-]?
 export function postProcessToken(token: string | null) {
   if (!token) return '';
 
+  // Remove reasoning/thinking tags like <think>...</think>
+  token = token.replace(/<\?xml[\s\S]*?<\/\?xml>|<thinking[\s\S]*?<\/thinking>/gi, '');
+
+  // Remove any remaining xml processing instructions
+  token = token.replace(/<\?[a-z]+[^>]*?\?>/g, '');
+
   // Remove starting fence like ```latex, ```tex, or just ```
   // Regex explanation:
   // ^\s*        : start with optional whitespace

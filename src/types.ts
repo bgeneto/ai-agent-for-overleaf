@@ -47,6 +47,7 @@ export interface Options {
 
 
   suggestionMaxOutputToken?: number;
+  thinkingTokenBudget?: number;
   suggestionPrompt?: string;
   suggestionDisabled?: boolean;
   completionShortcut?: string; // e.g., "Ctrl+Space" or "Alt+C"

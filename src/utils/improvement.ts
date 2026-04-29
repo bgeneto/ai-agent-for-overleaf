@@ -70,6 +70,19 @@ export async function* getImprovementStream(content: TextContent, prompt: string
     });
   }
 
+  const suggestedMaxTokens = options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN;
+  const hasThinkingSupport = /o1|o3|claude|gemini.*thinking/i.test(options.model || '') || (options.thinkingTokenBudget && options.thinkingTokenBudget > 0);
+
+  let effectiveMaxTokens: number;
+  let thinkingTokenBudget: number | undefined;
+
+  if (hasThinkingSupport) {
+    thinkingTokenBudget = suggestedMaxTokens;
+    effectiveMaxTokens = suggestedMaxTokens * 2;
+  } else {
+    effectiveMaxTokens = suggestedMaxTokens;
+  }
+
   // Send start message
   port.postMessage({
     type: 'start-stream',
@@ -77,8 +90,9 @@ export async function* getImprovementStream(content: TextContent, prompt: string
       apiKey: options.apiKey,
       apiBaseUrl: options.apiBaseUrl,
       model: options.model || DEFAULT_MODEL,
-      max_tokens: options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN,
-      messages: [{ role: 'user', content: promptContent }]
+      max_tokens: effectiveMaxTokens,
+      messages: [{ role: 'user', content: promptContent }],
+      ...(thinkingTokenBudget && { thinking_token_budget: thinkingTokenBudget })
     }
   });
 

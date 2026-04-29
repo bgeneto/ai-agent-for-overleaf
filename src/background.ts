@@ -26,10 +26,21 @@ chrome.runtime.onConnect.addListener(function (port) {
 
   port.onMessage.addListener(async function (msg) {
     if (msg.type === 'start-stream') {
-      const { apiKey, apiBaseUrl, model, max_tokens, messages } = msg.payload;
+      const { apiKey, apiBaseUrl, model, max_tokens, messages, thinking_token_budget } = msg.payload;
 
       try {
         const baseUrl = apiBaseUrl?.replace(/\/+$/, '') || 'https://api.openai.com/v1';
+
+        const requestBody: Record<string, unknown> = {
+          model: model,
+          messages: messages,
+          max_tokens: max_tokens,
+          stream: true,
+        };
+        if (thinking_token_budget !== undefined) {
+          requestBody.thinking_token_budget = thinking_token_budget;
+          requestBody.extra_body = { thinking_token_budget };
+        }
 
         const response = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
@@ -37,12 +48,7 @@ chrome.runtime.onConnect.addListener(function (port) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          body: JSON.stringify({
-            model: model,
-            messages: messages,
-            max_tokens: max_tokens,
-            stream: true
-          })
+          body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {

@@ -57,7 +57,7 @@ Write 1-3 paragraphs (or appropriate length based on context) that feel like a s
      * Prompt for "Improve Writing" action.
      * Used to enhance grammar, fluency, and style while preserving LaTeX syntax.
      */
-    IMPROVE: `You are a LaTeX content editor and native writing expert. Improve the TEXT below by fixing grammar errors and enhancing fluency to native-speaker quality in whatever language is present, while preserving all LaTeX syntax. Output ONLY the corrected LaTeX code with zero commentary.
+    IMPROVE: `You are a LaTeX content editor and native writing expert. Improve the TEXT below by fixing grammar errors and enhancing fluency to native-speaker quality in whatever language is present, while preserving all LaTeX syntax. Output ONLY the corrected LaTeX code with zero commentary or the content as-is if no improvement is needed.
 
 TEXT:
 
@@ -93,7 +93,7 @@ Return native-quality text in the original language(s) with perfect LaTeX syntax
      * Prompt for "Fix LaTeX" action.
      * Used to fix LaTeX syntax and compilation errors.
      */
-    FIX_LATEX: `You are a LaTeX syntax correction tool. Fix all compilation errors in the LaTeX code below. Output ONLY the corrected LaTeX code with zero commentary.
+    FIX_LATEX: `You are a LaTeX syntax correction tool. Fix all compilation errors in the LaTeX code below. Output ONLY the corrected LaTeX code with zero commentary or the content as-is if no correction was needed.
 
 LaTeX:
 
