@@ -71,14 +71,19 @@ export async function* getImprovementStream(content: TextContent, prompt: string
   }
 
   const suggestedMaxTokens = options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN;
-  const hasThinkingSupport = /o1|o3|claude|gemini.*thinking/i.test(options.model || '') || (options.thinkingTokenBudget && options.thinkingTokenBudget > 0);
+  const userThinkingBudget = (options.thinkingTokenBudget ?? 0) > 0 ? options.thinkingTokenBudget : 0;
+  const hasThinkingSupport = /o1|o3|claude|gemini.*thinking/i.test(options.model || '');
 
   let effectiveMaxTokens: number;
   let thinkingTokenBudget: number | undefined;
 
-  if (hasThinkingSupport) {
-    thinkingTokenBudget = suggestedMaxTokens;
-    effectiveMaxTokens = suggestedMaxTokens * 2;
+  if (hasThinkingSupport || userThinkingBudget > 0) {
+    thinkingTokenBudget = userThinkingBudget > 0 ? userThinkingBudget : suggestedMaxTokens;
+    effectiveMaxTokens = Math.max(
+      suggestedMaxTokens,
+      thinkingTokenBudget * 2,
+      thinkingTokenBudget + 512
+    );
   } else {
     effectiveMaxTokens = suggestedMaxTokens;
   }

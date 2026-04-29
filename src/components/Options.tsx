@@ -20,7 +20,11 @@ const OptionsForm = () => {
 
   useEffect(() => {
     getOptions().then((options) => {
-      onOptionsChange(options);
+      onOptionsChange({
+        suggestionMaxOutputToken: options.suggestionMaxOutputToken ?? 2048,
+        thinkingTokenBudget: options.thinkingTokenBudget ?? 1024,
+        ...options,
+      });
     });
   }, []);
 
@@ -30,6 +34,20 @@ const OptionsForm = () => {
     // Auto-add any pending domain before saving
     if (newDomain.trim()) {
       await addDomain();
+    }
+
+    // Validate numeric fields
+    if (state.suggestionMaxOutputToken && state.suggestionMaxOutputToken < 1) {
+      setMessage({ text: 'Max Output Tokens must be at least 1.', type: 'error' });
+      return;
+    }
+    if (state.thinkingTokenBudget && state.thinkingTokenBudget < 0) {
+      setMessage({ text: 'Thinking Token Budget cannot be negative.', type: 'error' });
+      return;
+    }
+    if (state.thinkingTokenBudget && state.thinkingTokenBudget > 0 && state.thinkingTokenBudget >= (state.suggestionMaxOutputToken ?? 0)) {
+      setMessage({ text: 'Thinking Token Budget must be less than Max Output Tokens.', type: 'error' });
+      return;
     }
 
     const optionsToSave = { ...state };
