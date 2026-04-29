@@ -54,11 +54,12 @@ export async function* getSuggestion(content: TextContent, signal: AbortSignal, 
   }
 
   const suggestedMaxTokens = options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN;
-  const userThinkingBudget = (options.thinkingTokenBudget ?? 0) > 0 ? options.thinkingTokenBudget : 0;
-  const hasThinkingSupport = /o1|o3|claude|gemini.*thinking/i.test(options.model || '');
+  const userThinkingBudget = (options.thinkingTokenBudget ?? 0) > 0 ? options.thinkingTokenBudget! : 0;
+  const model = options.model || '';
+  const hasThinkingSupport = /o1|o3|claude|gemini.*thinking/i.test(model);
 
   let effectiveMaxTokens: number;
-  let thinkingTokenBudget: number | undefined;
+  let thinkingTokenBudget: number = 0;
 
   if (hasThinkingSupport || userThinkingBudget > 0) {
     thinkingTokenBudget = userThinkingBudget > 0 ? userThinkingBudget : suggestedMaxTokens;
