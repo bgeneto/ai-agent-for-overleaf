@@ -47,7 +47,8 @@
         "scripting"
     ],
     "host_permissions": [
-        "*://*.overleaf.com/*"
+        "*://*.overleaf.com/*",
+        "https://export.arxiv.org/*"
     ],
     "optional_host_permissions": [
         "<all_urls>"

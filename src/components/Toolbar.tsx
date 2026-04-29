@@ -57,18 +57,22 @@ export const Toolbar = ({ data, actions, searchDisabled, onShowEditor, onClickSe
 
     if (action.onClick === "replace") {
       setLoading(true);
-      const content = await getImprovement(data.content, action.prompt, options, signal, action.isCustomAction);
-      setLoading(false);
+      try {
+        const content = await getImprovement(data.content, action.prompt, options, signal, action.isCustomAction);
 
-      if (signal.aborted) return;
-      window.dispatchEvent(
-        createCrossContextEvent('copilot:editor:replace', {
-          content: content,
-          from: data.from,
-          to: data.to,
-        })
-      );
-      setLoading(false);
+        if (signal.aborted) return;
+        window.dispatchEvent(
+          createCrossContextEvent('copilot:editor:replace', {
+            content: content,
+            from: data.from,
+            to: data.to,
+          })
+        );
+      } catch (error) {
+        console.error('Error replacing content:', error);
+      } finally {
+        setLoading(false);
+      }
     } else {
       onShowEditor(action);
     }

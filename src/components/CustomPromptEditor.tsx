@@ -47,12 +47,14 @@ export const CustomPromptEditor = ({ data, options, signal, onClose }: CustomPro
     const [loading, setLoading] = useState(false);
     const [userPrompt, setUserPrompt] = useState("");
     const [content, setContent] = useState("");
+    const [error, setError] = useState("");
     const [phase, setPhase] = useState<"input" | "output">("input");
     const [contextExpanded, setContextExpanded] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const promptInputRef = useRef<HTMLTextAreaElement>(null);
 
     const hasSelection = !!data?.content?.selection?.trim();
+    const hasBlockingError = !!error && content.length === 0;
 
     useEffect(() => {
         // Focus the prompt input on mount
@@ -101,6 +103,7 @@ export const CustomPromptEditor = ({ data, options, signal, onClose }: CustomPro
 
         setPhase("output");
         setContent("");
+        setError("");
         setLoading(true);
 
         try {
@@ -126,13 +129,18 @@ ${data!.content.selection}
             );
 
             for await (const chunk of stream) {
+                if (chunk.kind === 'error') {
+                    setError(chunk.content);
+                    return;
+                }
+
                 setContent((prev) => postProcessToken(prev + chunk.content));
                 if (textareaRef.current) {
                     textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
                 }
             }
-        } catch (err) {
-            // Error handled silently
+        } catch (error) {
+            setError(error instanceof Error ? error.message : String(error));
         } finally {
             setLoading(false);
         }
@@ -141,6 +149,7 @@ ${data!.content.selection}
     const onRegenerate = async () => {
         if (loading) return;
         setContent("");
+        setError("");
         setLoading(true);
 
         try {
@@ -166,20 +175,25 @@ ${data!.content.selection}
             );
 
             for await (const chunk of stream) {
+                if (chunk.kind === 'error') {
+                    setError(chunk.content);
+                    return;
+                }
+
                 setContent((prev) => postProcessToken(prev + chunk.content));
                 if (textareaRef.current) {
                     textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
                 }
             }
-        } catch (err) {
-            // Error handled silently
+        } catch (error) {
+            setError(error instanceof Error ? error.message : String(error));
         } finally {
             setLoading(false);
         }
     };
 
     const onReplace = () => {
-        if (loading || !hasSelection || !data) return;
+        if (loading || hasBlockingError || !hasSelection || !data) return;
 
         const cleanContent = postProcessToken(content);
         window.dispatchEvent(
@@ -193,7 +207,7 @@ ${data!.content.selection}
     };
 
     const onInsert = () => {
-        if (loading) return;
+        if (loading || hasBlockingError) return;
 
         const cleanContent = postProcessToken(content);
         // Always insert after the selection (data.to) with two newlines for LaTeX
@@ -301,14 +315,17 @@ ${data!.content.selection}
                     </div>
                 </div>
             ) : (
-                <textarea
-                    ref={textareaRef}
-                    class="custom-prompt-output-textarea"
-                    disabled={loading}
-                    placeholder={"Generating..."}
-                    value={content}
-                    onInput={(e) => setContent((e.target as HTMLTextAreaElement).value)}
-                />
+                <>
+                    {error && <div style={{ color: '#b42318', fontSize: '12px', padding: '8px 12px 0' }}>{error}</div>}
+                    <textarea
+                        ref={textareaRef}
+                        class="custom-prompt-output-textarea"
+                        disabled={loading}
+                        placeholder={error || "Generating..."}
+                        value={content}
+                        onInput={(e) => setContent((e.target as HTMLTextAreaElement).value)}
+                    />
+                </>
             )}
         </div>
     );

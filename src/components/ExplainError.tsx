@@ -17,6 +17,7 @@ export interface ExplainErrorProps {
 
 export const ExplainError = ({ errorCtx, errorTitle, options, onClose }: ExplainErrorProps) => {
     const [content, setContent] = useState("");
+    const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -24,6 +25,7 @@ export const ExplainError = ({ errorCtx, errorTitle, options, onClose }: Explain
             const controller = new AbortController();
 
             try {
+                setError("");
                 const prompt = options.explainErrorPrompt || PROMPTS.EXPLAIN_ERROR;
                 const finalPrompt = prompt
                     .replace("{{error_title}}", errorTitle || "Error")
@@ -35,6 +37,11 @@ export const ExplainError = ({ errorCtx, errorTitle, options, onClose }: Explain
                 const stream = getImprovementStream({ selection: errorCtx, before: "", after: "" }, finalPrompt, options, controller.signal);
 
                 for await (const chunk of stream) {
+                    if (chunk.kind === 'error') {
+                        setError(chunk.content);
+                        break;
+                    }
+
                     setContent((prev) => postProcessToken(prev + chunk.content));
                     setLoading(false);
 
@@ -46,7 +53,7 @@ export const ExplainError = ({ errorCtx, errorTitle, options, onClose }: Explain
                 }
             } catch (err) {
                 console.error("Error generating explanation:", err);
-                setContent("**Error:** Failed to generate explanation. Please try again.");
+                setError("Failed to generate explanation. Please try again.");
             } finally {
                 setLoading(false);
             }
@@ -74,17 +81,20 @@ export const ExplainError = ({ errorCtx, errorTitle, options, onClose }: Explain
                         <div className="loading" />
                     </div>
                 ) : (
-                    <div
-                        id="copilot-explain-error-content"
-                        style={{
-                            flex: 1,
-                            overflowY: 'auto',
-                            paddingRight: '5px',
-                            lineHeight: '1.5',
-                            fontSize: '14px'
-                        }}
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(content) as string) }}
-                    />
+                    <>
+                        {error && <div style={{ color: '#b42318', marginBottom: '10px' }}>{error}</div>}
+                        <div
+                            id="copilot-explain-error-content"
+                            style={{
+                                flex: 1,
+                                overflowY: 'auto',
+                                paddingRight: '5px',
+                                lineHeight: '1.5',
+                                fontSize: '14px'
+                            }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(content) as string) }}
+                        />
+                    </>
                 )}
             </div>
         </Fragment>

@@ -56,9 +56,11 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [loading, setLoading] = useState(false);
   const [content, setContent] = useState("");
+  const [error, setError] = useState("");
   const [showDiff, setShowDiff] = useState(false);
   const [diffs, setDiffs] = useState<Diff.Change[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hasBlockingError = !!error && content.length === 0;
 
   useEffect(() => {
     const run = async () => {
@@ -109,6 +111,7 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
     if (loading) return;
     setShowDiff(false);
     setContent("");
+    setError("");
     setLoading(true);
     try {
       // Use getSuggestion for continuation actions (uses buildContinuationPrompt)
@@ -118,20 +121,25 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
         : getImprovementStream(data.content, action.prompt, options, signal, action.isCustomAction);
 
       for await (const chunk of stream) {
+        if (chunk.kind === 'error') {
+          setError(chunk.content);
+          return;
+        }
+
         setContent((prev) => postProcessToken(prev + chunk.content));
         if (textareaRef.current) {
           textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
         }
       }
-    } catch (err) {
-      // Error handled silently
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
   }
 
   const onReplace = () => {
-    if (loading) return;
+    if (loading || hasBlockingError) return;
 
     // Clean content before replacing
     const cleanContent = postProcessToken(content);
@@ -148,7 +156,7 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
   }
 
   const onInsert = () => {
-    if (loading) return;
+    if (loading || hasBlockingError) return;
 
     // Clean content before inserting
     const cleanContent = postProcessToken(content);
@@ -232,6 +240,7 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
         </div>
       </span>
     </div >
+    {error && <div style={{ color: '#b42318', fontSize: '12px', padding: '8px 12px 0' }}>{error}</div>}
     {showDiff ?
       <div className="toolbar-editor-diff-view">
         {diffs.map((d, i) => {
@@ -247,7 +256,7 @@ export const ToolbarEditor = ({ data, action, signal, options, onClose }: Toolba
       <textarea
         ref={textareaRef}
         disabled={loading}
-        placeholder={"Generating..."}
+        placeholder={error || "Generating..."}
         value={content}
         onInput={(e) => setContent((e.target as HTMLTextAreaElement).value)}
       />}

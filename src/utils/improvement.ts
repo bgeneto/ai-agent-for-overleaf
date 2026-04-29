@@ -9,6 +9,16 @@ import { buildImprovePrompt, buildCustomActionPrompt } from '../prompts';
 import { postProcessToken, sanitizeContentForApi } from './helper';
 import { Options, TextContent, StreamChunk } from '../types';
 
+type PortStreamMessage = StreamChunk | { kind: 'done' };
+
+function toErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
 
 export async function getImprovement(content: TextContent, prompt: string, options: Options, signal: AbortSignal, isCustomAction?: boolean) {
   let fullContent = "";
@@ -17,7 +27,7 @@ export async function getImprovement(content: TextContent, prompt: string, optio
     if (chunk.kind === 'token') {
       fullContent += chunk.content;
     } else if (chunk.kind === 'error') {
-      return chunk.content;
+      throw new Error(chunk.content);
     }
   }
   return postProcessToken(fullContent);
@@ -45,31 +55,57 @@ export async function* getImprovementStream(content: TextContent, prompt: string
 
   // Promisify the stream for generator usage
   // We need to queue incoming messages and yield them
-  const queue: any[] = [];
+  const queue: PortStreamMessage[] = [];
   let resolveNext: ((value?: any) => void) | null = null;
   let isDone = false;
-  let error: any = null;
+  let isDisconnected = false;
 
-  port.onMessage.addListener((msg) => {
-    queue.push(msg);
+  const wake = () => {
     if (resolveNext) {
       resolveNext();
       resolveNext = null;
     }
+  };
+
+  const disconnectPort = () => {
+    if (isDisconnected) {
+      return;
+    }
+
+    isDisconnected = true;
+
+    try {
+      port.disconnect();
+    } catch (error) {
+      // Port is already disconnected.
+    }
+  };
+
+  const abortHandler = () => {
+    isDone = true;
+    disconnectPort();
+    wake();
+  };
+
+  port.onMessage.addListener((msg: PortStreamMessage) => {
+    queue.push(msg);
+    wake();
   });
 
   port.onDisconnect.addListener(() => {
     isDone = true;
-    if (resolveNext) resolveNext();
+    isDisconnected = true;
+    wake();
   });
 
   // Handle user abort
+  if (signal?.aborted) {
+    disconnectPort();
+    return;
+  }
+
   if (signal) {
-    signal.addEventListener('abort', () => {
-      port.disconnect();
-      isDone = true;
-      if (resolveNext) resolveNext();
-    });
+    signal.addEventListener('abort', abortHandler, { once: true });
   }
 
   const suggestedMaxTokens = options.suggestionMaxOutputToken ?? DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN;
@@ -92,22 +128,31 @@ export async function* getImprovementStream(content: TextContent, prompt: string
   }
 
   // Send start message
-  port.postMessage({
-    type: 'start-stream',
-    payload: {
-      apiKey: options.apiKey,
-      apiBaseUrl: options.apiBaseUrl,
-      model: options.model || DEFAULT_MODEL,
-      max_tokens: effectiveMaxTokens,
-      messages: [{ role: 'user', content: promptContent }],
-      ...(thinkingTokenBudget && { thinking_token_budget: thinkingTokenBudget })
-    }
-  });
+  try {
+    port.postMessage({
+      type: 'start-stream',
+      payload: {
+        apiKey: options.apiKey,
+        apiBaseUrl: options.apiBaseUrl,
+        model: options.model || DEFAULT_MODEL,
+        max_tokens: effectiveMaxTokens,
+        messages: [{ role: 'user', content: promptContent }],
+        ...(thinkingTokenBudget && { thinking_token_budget: thinkingTokenBudget })
+      }
+    });
+  } catch (error) {
+    yield { kind: 'error', content: toErrorMessage(error) };
+    return;
+  }
 
   try {
     while (true) {
       if (queue.length > 0) {
         const msg = queue.shift();
+        if (!msg) {
+          continue;
+        }
+
         if (msg.kind === 'token') {
           yield { kind: 'token', content: msg.content };
         } else if (msg.kind === 'error') {
@@ -123,6 +168,10 @@ export async function* getImprovementStream(content: TextContent, prompt: string
       }
     }
   } finally {
-    port.disconnect();
+    if (signal) {
+      signal.removeEventListener('abort', abortHandler);
+    }
+
+    disconnectPort();
   }
 }
