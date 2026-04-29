@@ -6,7 +6,7 @@ import {
   DEFAULT_SUGGESTION_MAX_OUTPUT_TOKEN
 } from '../constants';
 import { buildImprovePrompt, buildCustomActionPrompt } from '../prompts';
-import { sanitizeContentForApi } from './helper';
+import { postProcessToken, sanitizeContentForApi } from './helper';
 import { Options, TextContent, StreamChunk } from '../types';
 
 
@@ -20,7 +20,7 @@ export async function getImprovement(content: TextContent, prompt: string, optio
       return chunk.content;
     }
   }
-  return fullContent;
+  return postProcessToken(fullContent);
 }
 
 export async function* getImprovementStream(content: TextContent, prompt: string, options: Options, signal: AbortSignal, isCustomAction?: boolean):

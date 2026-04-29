@@ -126,7 +126,7 @@ ${data!.content.selection}
             );
 
             for await (const chunk of stream) {
-                setContent((prev) => prev + chunk.content);
+                setContent((prev) => postProcessToken(prev + chunk.content));
                 if (textareaRef.current) {
                     textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
                 }
@@ -166,7 +166,7 @@ ${data!.content.selection}
             );
 
             for await (const chunk of stream) {
-                setContent((prev) => prev + chunk.content);
+                setContent((prev) => postProcessToken(prev + chunk.content));
                 if (textareaRef.current) {
                     textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
                 }

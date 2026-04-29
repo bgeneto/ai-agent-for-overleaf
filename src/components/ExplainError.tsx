@@ -6,6 +6,7 @@ import { marked } from "marked";
 import DOMPurify from 'dompurify';
 import { Options } from "../types";
 import { PROMPTS } from "../prompts";
+import { postProcessToken } from "../utils/helper";
 
 export interface ExplainErrorProps {
     errorCtx: string;
@@ -34,7 +35,7 @@ export const ExplainError = ({ errorCtx, errorTitle, options, onClose }: Explain
                 const stream = getImprovementStream({ selection: errorCtx, before: "", after: "" }, finalPrompt, options, controller.signal);
 
                 for await (const chunk of stream) {
-                    setContent((prev) => prev + chunk.content);
+                    setContent((prev) => postProcessToken(prev + chunk.content));
                     setLoading(false);
 
                     // Scroll to bottom

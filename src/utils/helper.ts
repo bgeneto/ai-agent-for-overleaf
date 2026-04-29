@@ -23,19 +23,28 @@ const PromptVariableRegex = /\{\{[\w]*(selection|before|after)(\[([-]?\d*):([-]?
 export function postProcessToken(token: string | null) {
   if (!token) return '';
 
-  // Remove reasoning/thinking tags - handle multiline with DOTALL-like behavior
-  token = token.replace(/<thinking[\s\S]*?<\/thinking>/gi, '');
-  token = token.replace(/<\?xml[\s\S]*?<\/\?xml>/gi, '');
+  // Remove reasoning/thinking blocks using string-based approach to avoid JSX parsing issues
+  // Handles <think>, <thinking>, <anthropicthinking>, and their closing markers.
+  const GT = String.fromCharCode(62);
+  const LT = String.fromCharCode(60);
+  const SLASH = String.fromCharCode(47);
+  const thinkingTagNamePattern = '(?:think|thinking|anthropicthinking)';
+  const openingThinkingTagPattern = LT + thinkingTagNamePattern + '(?:\\s[^' + GT + ']*)*' + GT;
+  const closingThinkingTagPattern = LT + SLASH + thinkingTagNamePattern + GT;
 
-  // Remove any remaining xml processing instructions
-  token = token.replace(/<\?[a-z]+[^>]*?\?>/g, '');
+  // Remove complete thinking blocks.
+  const thinkingPattern = new RegExp(openingThinkingTagPattern + '[\\s\\S]*?' + closingThinkingTagPattern, 'gi');
+  token = token.replace(thinkingPattern, '');
+
+  // Strip orphaned closing tags left behind by chunk boundaries.
+  const orphanClosingTagPattern = new RegExp(closingThinkingTagPattern, 'gi');
+  token = token.replace(orphanClosingTagPattern, '');
+
+  // Remove xml processing instructions
+  const xmlPattern = new RegExp(LT + '\\?[a-z]+[^' + GT + ']*?' + '\\?' + GT, 'g');
+  token = token.replace(xmlPattern, '');
 
   // Remove starting fence like ```latex, ```tex, or just ```
-  // Regex explanation:
-  // ^\s*        : start with optional whitespace
-  // ```         : literal backticks
-  // (latex|tex)?: optional language identifier
-  // \s*         : optional newlines/whitespace
   token = token.replace(/^\s*```(latex|tex)?\s*/i, '');
 
   // Remove ending fence like ```

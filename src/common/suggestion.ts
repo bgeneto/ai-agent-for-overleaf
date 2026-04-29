@@ -1,4 +1,5 @@
 import { Options, TextContent } from "../types";
+import { postProcessToken } from "../utils/helper";
 import { getSuggestion } from "../utils/suggestion";
 
 // A class to represent a suggestion in the editor
@@ -78,15 +79,14 @@ export class Suggestion {
     let hasError = false;
     let firstToken = true;
     for await (const chunk of getSuggestion(content, signal, options)) {
+      const currentText = firstToken ? '' : this.text;
+
       if (chunk.kind === "token") {
-        if (firstToken) {
-          this.text = chunk.content;
-          firstToken = false;
-        }
-        else this.text = this.text + chunk.content;
+        this.text = postProcessToken(currentText + chunk.content);
+        firstToken = false;
       } else {
         this.status = 'error';
-        this.text = this.text + chunk.content;
+        this.text = postProcessToken(currentText + chunk.content);
         hasError = true;
         this.textColor = 'red';
         break;

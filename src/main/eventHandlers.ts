@@ -1,6 +1,7 @@
 import * as Diff from 'diff';
 import { getCmView } from './helpers';
 import { Suggestion } from '../common/suggestion';
+import { postProcessToken } from '../utils/helper';
 
 // Helper to safely extract event detail across Firefox isolated/main world boundary
 function getEventDetail<T>(e: CustomEvent<any>): T {
@@ -29,10 +30,11 @@ export function onAcceptSuggestion() {
   }
 
   const view = getCmView();
+  const acceptedText = postProcessToken(suggestion.text);
   const changes = {
     from: suggestion.pos,
     to: view.state.selection.main.head,
-    insert: suggestion.text
+    insert: acceptedText
   };
   view.dispatch({ changes });
   suggestion.remove();
@@ -43,7 +45,12 @@ export function onAcceptPartialSuggestion() {
   if (suggestion?.status !== 'completed') return;
 
   const pos = suggestion.pos;
-  const text = suggestion.text;
+  const text = postProcessToken(suggestion.text);
+
+  if (!text) {
+    suggestion.remove();
+    return;
+  }
 
   let acceptedLength = text.length;
   let hasContent = false;
@@ -66,6 +73,7 @@ export function onReplaceContent(
   e: CustomEvent<{ content: string; from: number; to: number }>
 ) {
   const detail = getEventDetail<{ content: string; from: number; to: number }>(e);
+  const cleanContent = postProcessToken(detail.content);
   var view = getCmView();
   const state = view.state;
   if (
@@ -77,17 +85,17 @@ export function onReplaceContent(
       state.selection.main.to
     )
     let changes = [];
-    let diffs = Diff.diffChars(originalContent, detail.content);
+    let diffs = Diff.diffChars(originalContent, cleanContent);
 
     if (diffs.length >= 500) {
-      diffs = Diff.diffWordsWithSpace(originalContent, detail.content);
+      diffs = Diff.diffWordsWithSpace(originalContent, cleanContent);
     }
 
     if (diffs.length >= 500) {
       changes.push({
         from: detail.from,
         to: detail.to,
-        insert: detail.content,
+        insert: cleanContent,
       });
     } else {
       let index = 0;
@@ -110,7 +118,7 @@ export function onReplaceContent(
       }
     }
 
-    const selection = { anchor: detail.from + detail.content.length };
+    const selection = { anchor: detail.from + cleanContent.length };
     view.dispatch({ changes, selection });
   }
 }
@@ -119,6 +127,7 @@ export function onInsertContent(
   e: CustomEvent<{ content: string; pos?: number }>
 ) {
   const detail = getEventDetail<{ content: string; pos?: number }>(e);
+  const cleanContent = postProcessToken(detail.content);
   const view = getCmView();
   const state = view.state;
   const insertPos = detail.pos !== undefined ? detail.pos : state.selection.main.head;
@@ -126,12 +135,12 @@ export function onInsertContent(
   const changes = {
     from: insertPos,
     to: insertPos,
-    insert: detail.content
+    insert: cleanContent
   };
 
   // Dispatch change and move cursor to end of insertion
   view.dispatch({
     changes,
-    selection: { anchor: insertPos + detail.content.length }
+    selection: { anchor: insertPos + cleanContent.length }
   });
 }
