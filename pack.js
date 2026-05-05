@@ -1,5 +1,6 @@
 const { readFileSync, existsSync, mkdirSync, copyFileSync, writeFileSync } = require('fs');
 const { resolve, join } = require('path');
+const { execSync } = require('child_process');
 const AdmZip = require('adm-zip');
 
 const args = process.argv.slice(2);
@@ -8,6 +9,13 @@ const isChrome = args.includes('--chrome') || !isFirefox; // Default to Chrome
 
 try {
   const buildDir = resolve(__dirname, 'build');
+
+  // Auto-build if build/ directory doesn't exist
+  if (!existsSync(buildDir)) {
+    console.log('Build directory not found. Running webpack build...');
+    execSync('npm run build', { stdio: 'inherit' });
+  }
+
   const manifest = JSON.parse(
     readFileSync(join(buildDir, 'manifest.json'), 'utf8')
   );

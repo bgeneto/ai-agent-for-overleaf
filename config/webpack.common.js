@@ -31,7 +31,12 @@ const common = {
       // Check for TypeScript files
       {
         test: /\.(ts|tsx)$/,
-        use: ['ts-loader'],
+        use: [{
+          loader: 'ts-loader',
+          options: {
+            transpileOnly: true,
+          },
+        }],
       },
       // Help webpack in understanding CSS files imported in .js files
       {

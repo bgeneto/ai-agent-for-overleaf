@@ -9,6 +9,7 @@ import {
   X, Infinity, Expand, Shrink, CaseSensitive, Replace, RotateCcw,
   Diff, Circle, CircleCheck, Lightbulb, CircleHelp
 } from 'lucide-preact';
+import { h } from 'preact';
 
 interface IconProps {
   name: string;
@@ -16,11 +17,16 @@ interface IconProps {
   size?: string | number;
 }
 
-export const Icon = ({ name, color, size }: IconProps) => {
+// Helper to render lucide-preact icons as valid JSX elements
+// lucide-preact icons return ComponentChildren which is not compatible with react-jsx mode
+function IconElement({ icon: IconComponent, color, size }: { icon: LucideIcon; color?: string; size?: string | number }) {
+  return h(IconComponent, { color, size });
+}
 
+export const Icon = ({ name, color, size }: IconProps) => {
   const LucideIcon = name in iconsMap ? iconsMap[name] : Pen;
 
-  return <LucideIcon color={color} size={size} />;
+  return <IconElement icon={LucideIcon} color={color} size={size} />;
 };
 
 
@@ -75,3 +81,8 @@ export const iconsMap: { [key: string]: LucideIcon } = {
 }
 
 export const icons = Object.keys(iconsMap).sort();
+
+// Helper function to render any lucide icon as a valid JSX element
+export function renderIcon(IconComponent: LucideIcon, props?: { color?: string; size?: string | number }) {
+  return h(IconComponent, props);
+}
